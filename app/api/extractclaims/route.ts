@@ -1,6 +1,6 @@
 // app/api/extractclaims/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { generateText } from 'ai';
 
 // This function can run for a maximum of 60 seconds
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     // Run the prompt to extract claims along with original text parts
     const { text } = await generateText({
-      model: anthropic('claude-3-5-sonnet-20240620'),
+      model: openai("gpt-4o-mini"),
       prompt: 
       `You are an expert at extracting claims from text.
       Your task is to identify and list all claims present, true or false, in the given text. Each claim should be a single, verifiable statement.

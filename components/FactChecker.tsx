@@ -8,7 +8,6 @@ import PreviewBox from "./PreviewBox";
 import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import AnimatedGradientText from "./ui/animated-gradient-text";
 import ShareButtons from "./ui/ShareButtons";
-import { getAssetPath } from "@/lib/utils";
 
 interface Claim {
     claim: string;
@@ -63,7 +62,7 @@ export default function FactChecker() {
 
   // Extract claims function
   const extractClaims = async (content: string) => {
-    const response = await fetch(getAssetPath('/api/extractclaims'), {
+    const response = await fetch('/api/extractclaims', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -84,7 +83,7 @@ export default function FactChecker() {
   const exaSearch = async (claim: string) => {
     console.log(`Claim recieved in exa search: ${claim}`);
 
-    const response = await fetch(getAssetPath('/api/exasearch'), {
+    const response = await fetch('/api/exasearch', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +102,7 @@ export default function FactChecker() {
 
   // Verify claims function
   const verifyClaim = async (claim: string, original_text: string, exasources: any) => {
-    const response = await fetch(getAssetPath('/api/verifyclaims'), {
+    const response = await fetch('/api/verifyclaims', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -183,17 +182,16 @@ export default function FactChecker() {
 
   return (
     <div className="flex flex-col min-h-screen z-0">
-
         {/* Badge positioned at the top */}
       <div className="w-full flex justify-center pt-10 opacity-0 animate-fade-up [animation-delay:200ms]">
         <Link href="https://exa.ai/" target="_blank">
           <AnimatedGradientText>
           <img 
-            src={getAssetPath('/exaicon.png')} 
+            src="/exaicon.png" 
             alt="exa logo" 
             className="w-5 h-5 inline-block mr-2" 
           />
-            <span className="inline animate-gradient bg-gradient-to-r from-[#254bf1] via-purple-600 to-[#254bf1] bg-[length:var(--bg-size)_100%] bg-clip-text text-transparent">
+            <span className="inline animate-gradient bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:var(--bg-size)_100%] bg-clip-text text-transparent">
               Built on Exa - Search Engine for AI
             </span>
             <ChevronRight className="ml-1 size-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
@@ -205,7 +203,7 @@ export default function FactChecker() {
         <div className="text-left">
           <h1 className="md:text-6xl text-4xl pb-5 font-medium opacity-0 animate-fade-up [animation-delay:400ms]">
             Detect LLM 
-            <span className="text-brand-default"> Hallucinations </span>
+            <span className="text-blue-600"> Hallucinations </span>
           </h1>
 
           <p className="text-gray-800 mb-12 opacity-0 animate-fade-up [animation-delay:600ms]">
@@ -219,14 +217,14 @@ export default function FactChecker() {
             value={articleContent}
             onChange={(e) => setArticleContent(e.target.value)}
             placeholder="Enter Your Content"
-            className="w-full bg-white p-3 border box-border outline-none rounded-none ring-2 ring-brand-default resize-none min-h-[150px] max-h-[250px] overflow-auto opacity-0 animate-fade-up [animation-delay:800ms] transition-[height] duration-200 ease-in-out"
+            className="w-full bg-white p-3 border box-border outline-none rounded-none ring-2 ring-blue-600 resize-none min-h-[150px] max-h-[250px] overflow-auto opacity-0 animate-fade-up [animation-delay:800ms] transition-[height] duration-200 ease-in-out"
           />
 
           <div className="pb-5">
             <button
               onClick={loadSampleContent}
               disabled={isGenerating}
-              className={`px-3 py-2 border-2 border-brand-default text-brand-default font-semibold rounded-none hover:bg-brand-default hover:text-white transition-all opacity-0 animate-fade-up [animation-delay:1000ms] ${
+              className={`px-3 py-2 border-2 border-blue-600 text-blue-600 font-semibold rounded-none hover:bg-blue-600 hover:text-white transition-all opacity-0 animate-fade-up [animation-delay:1000ms] ${
                 isGenerating ? 'cursor-not-allowed' : ''
               }`}
             >
@@ -237,7 +235,7 @@ export default function FactChecker() {
           <button
             type="submit"
             className={`w-full text-white mb-10 font-semibold px-2 py-2 rounded-none transition-opacity opacity-0 animate-fade-up [animation-delay:1200ms] min-h-[50px] ${
-              isGenerating ? 'bg-gray-400' : 'bg-brand-default ring-2 ring-brand-default'
+              isGenerating ? 'bg-gray-400' : 'bg-blue-600 ring-2 ring-blue-600'
             } transition-colors`}
             disabled={isGenerating}
           >
