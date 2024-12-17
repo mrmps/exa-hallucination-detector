@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { loadStripe } from "@stripe/stripe-js";
 import useMediaQuery from "@/lib/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
-import { createStripeCheckoutSession } from "@/lib/actions";
+import { createStripeCheckoutSession } from "@/lib/actions/stripe-actions";
 import { NiceBlueButton } from "./ui/nice-blue-button";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);

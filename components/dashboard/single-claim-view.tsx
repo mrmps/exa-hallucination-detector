@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Check, X, AlertTriangle, ArrowLeft } from 'lucide-react'
-import { Claim } from '../../lib/types'
+import { Claim } from '@/lib/types'
 import { SourceDetail } from './source-detail'
-import { getStatusColor } from '../../utils/helpers'
+import { getStatusColor } from '@/utils/helpers'
 
 interface SingleClaimViewProps {
   claim: Claim

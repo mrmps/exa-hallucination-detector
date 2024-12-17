@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { currentUser } from '@clerk/nextjs/server'
-import { retrieveStripeCheckoutSession } from "@/lib/actions" 
+import { retrieveStripeCheckoutSession } from "@/lib/actions/stripe-actions" 
 
 interface CheckoutPageProps {
   searchParams: {

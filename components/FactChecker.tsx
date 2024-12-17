@@ -12,7 +12,7 @@ import {
   ExternalLink,
   AlertTriangle
 } from 'lucide-react';
-import FactCheckTool from "./factchecktooltemp";
+import FactCheckTool from "./textarea-landing";
 
 const howItWorks = [
   {
