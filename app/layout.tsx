@@ -11,6 +11,7 @@ import {
 } from "@clerk/nextjs";
 import NavBar from "@/components/NavBar";
 import { Toaster } from "@/components/ui/toaster"
+import { SearchProvider } from "@/app/Contexts/search-context";
 
 export const metadata: Metadata = {
   title: "Hallucinations Detector Tool",
@@ -61,8 +62,8 @@ export default function RootLayout({
       <html lang="en" className="bg-gradient-to-b from-[#FDFBF9] to-[#F9F7F5]">
         <body className={GeistSans.className}>
           <NavBar />
-          <main className="flex relative min-h-screen flex-col items-center justify-center md:p-4 pt-16">
-            {children}
+          <main>
+            <SearchProvider>{children}</SearchProvider>
           </main>
           <Toaster />
           <Analytics />

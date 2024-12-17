@@ -12,13 +12,14 @@ import { loadStripe } from "@stripe/stripe-js";
 import useMediaQuery from "@/lib/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
 import { createStripeCheckoutSession } from "@/lib/actions";
+import { NiceBlueButton } from "./ui/nice-blue-button";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function UpgradeModal() {
   const [open, setOpen] = React.useState(false);
   const [plans, setPlans] = React.useState<any[]>([]);
-  const [plan, setPlan] = React.useState("annual");
+  const [plan, setPlan] = React.useState("");
   const { isMobile } = useMediaQuery();
   const { toast } = useToast();
 
@@ -28,6 +29,10 @@ export default function UpgradeModal() {
         const response = await fetch('/api/plans');
         const data = await response.json();
         setPlans(data);
+        // Set the first plan as default when plans are loaded
+        if (data.length > 0) {
+          setPlan(data[0].id);
+        }
       } catch (error) {
         console.error('Error fetching plans:', error);
       }
@@ -61,26 +66,28 @@ export default function UpgradeModal() {
 
   const content = (
     <div className="px-4 py-2 space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Instantly verify claims, boost credibility, and excel in your writing with our AI-powered fact-checker.
-      </p>
+      <div className="animate-fade-up opacity-0" style={{ animationDelay: "0ms" }}>
+        <p className="text-sm text-muted-foreground">
+          Instantly verify claims, boost credibility, and excel in your writing with our AI-powered fact-checker.
+        </p>
+      </div>
 
-      <div className="space-y-2">
+      <div className="animate-fade-up opacity-0 space-y-2" style={{ animationDelay: "100ms" }}>
         <h3 className="text-sm font-semibold">Premium Plan Includes:</h3>
         <ul className="text-sm space-y-1">
-          <li><Check className="inline h-4 w-4 text-blue-500 mr-1" /> 20,000 monthly fact checks</li>
+          <li><Check className="inline h-4 w-4 text-blue-500 mr-1" /> 20,000 monthly credits (2k fact checks)</li>
           <li><Check className="inline h-4 w-4 text-blue-500 mr-1" /> Advanced claim verification</li>
           <li><Check className="inline h-4 w-4 text-blue-500 mr-1" /> Credibility analysis</li>
           <li><Check className="inline h-4 w-4 text-blue-500 mr-1" /> Citation suggestions</li>
         </ul>
       </div>
 
-      <div className="bg-gray-50 border rounded-lg p-3 text-sm italic text-muted-foreground">
+      <div className="animate-fade-up opacity-0 bg-gray-50 border rounded-lg p-3 text-sm italic text-muted-foreground" style={{ animationDelay: "200ms" }}>
         "I rely on this for every research paper—it's saved me countless hours and made my work more credible."
         <div className="mt-1 font-medium text-black">— Sarah, Researcher</div>
       </div>
 
-      <RadioGroup value={plan} onValueChange={setPlan} className="space-y-2">
+      <RadioGroup value={plan} onValueChange={setPlan} className="animate-fade-up opacity-0 space-y-2" style={{ animationDelay: "300ms" }}>
         {plans.map((planOption) => (
           <div key={planOption.id} className={`flex items-center space-x-2 rounded-md border p-3 ${plan === planOption.id ? 'border-blue-500 bg-blue-50' : ''}`}>
             <RadioGroupItem value={planOption.id} id={planOption.id} className="w-5 h-5 border-2 border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 checked:border-blue-500 checked:bg-blue-500" />
@@ -122,8 +129,8 @@ export default function UpgradeModal() {
             </DrawerHeader>
             {content}
             <DrawerFooter className="px-4 py-4">
-              <Button 
-                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              <NiceBlueButton
+                className="w-full"
                 onClick={() => {
                   const selectedPlan = plans.find(p => p.id === plan);
                   if (selectedPlan) {
@@ -132,7 +139,7 @@ export default function UpgradeModal() {
                 }}
               >
                 Upgrade to Premium
-              </Button>
+              </NiceBlueButton>
             </DrawerFooter>
           </div>
         </DrawerContent>
@@ -145,7 +152,7 @@ export default function UpgradeModal() {
       <DialogTrigger asChild>
         <Button variant="outline">Upgrade to Premium</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader className="text-left p-4 pb-2">
           <div className="flex items-center justify-between mb-2">
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
@@ -158,8 +165,8 @@ export default function UpgradeModal() {
         </DialogHeader>
         {content}
         <div className="p-4 mt-4">
-          <Button 
-            className="w-full bg-blue-600 text-white hover:bg-blue-700"
+          <NiceBlueButton
+            className="w-full"
             onClick={() => {
               const selectedPlan = plans.find(p => p.id === plan);
               if (selectedPlan) {
@@ -168,7 +175,7 @@ export default function UpgradeModal() {
             }}
           >
             Upgrade to Premium
-          </Button>
+          </NiceBlueButton>
         </div>
       </DialogContent>
     </Dialog>

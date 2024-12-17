@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+const colors = require('tailwindcss/colors')
+
 
 const config: Config = {
     darkMode: ["class"],
@@ -10,6 +12,8 @@ const config: Config = {
   theme: {
   	extend: {
   		colors: {
+			blue: colors.blue,
+			neutral: colors.neutral,
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -49,7 +53,7 @@ const config: Config = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
