@@ -1,319 +1,180 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { type Claim } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  CheckCircle2,
-  AlertTriangle,
-  HelpCircle,
-  Pencil,
-  Copy,
-  CheckCheck,
-} from 'lucide-react';
+import { CheckCircle2, AlertTriangle, HelpCircle, Pencil, Copy, CheckCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ClaimsScale } from '@/components/dashboard/claims-scale';
 import { ClaimCard } from '@/components/dashboard/claim-card';
 import { SingleClaimView } from '@/components/dashboard/single-claim-view';
 import { TextActionBar } from '@/components/dashboard/text-action-bar';
 import { EditableText } from '@/components/dashboard/editable-text';
 import * as Schemas from '@/lib/schemas';
-import { ExaResult, VerifiedClaimResponse, ExtractClaimsResponse, ExaSearchResponse, Sentence } from '@/lib/types';
+import { VerifiedClaimResponse, ExtractClaimsResponse, ExaSearchResponse, ClaimStatus } from '@/lib/types';
 
 const MAX_CHARACTERS = 5000;
 
 interface FactCheckerProps {
   submissionId: string;
-  sentences: Sentence[];
+  text: string; // The entire essay text
+  // You can still have sentences if needed, but now we rely on text indexing
+  // Let's assume we keep sentences array for reference only
+  sentences: { id: number; text: string; start: number; end: number; }[];
 }
 
 const FactChecker: React.FC<FactCheckerProps> = ({
   submissionId,
-  sentences: initialSentences
+  text,
+  sentences
 }) => {
-  // State for claims and counts
   const [claims, setClaims] = useState<Claim[] | null>(null);
-  const [issuesCount, setIssuesCount] = useState<number | null>(null);
-  const [claimsCount, setClaimsCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [scansLeft, setScansLeft] = useState(5); // Default value
-  const [totalScans, setTotalScans] = useState(10); // Default value
+
+  const [scansLeft, setScansLeft] = useState(5);
+  const [totalScans, setTotalScans] = useState(10);
+
   const [activeClaim, setActiveClaim] = useState<Claim | null>(null);
   const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
+
   const [activeTab, setActiveTab] = useState<'text' | 'analysis'>('text');
   const [isEditing, setIsEditing] = useState(false);
+
   const [isLoading, setLoading] = useState(false);
-  const [editableText, setEditableText] = useState(initialSentences.map(s => s.text).join(' '));
-  const [sentences, setSentences] = useState<Sentence[]>(initialSentences);
+  const [editableText, setEditableText] = useState(text);
   const [copied, setCopied] = useState(false);
-  const [selectedClaimFromText, setSelectedClaimFromText] =
-    useState<Claim | null>(null);
 
-  const textRef = useRef<HTMLDivElement>(null);
-  const claimsRef = useRef<HTMLDivElement>(null);
+  // Derivations
+  const filteredClaims = useMemo(() => {
+    return claims?.filter((claim) => claim.status !== 'insufficient information') ?? [];
+  }, [claims]);
 
-  const displayText = sentences.map((s) => s.text).join(' ');
+  const claimsNeedingFix = useMemo(() => {
+    return filteredClaims.filter((claim) => claim.status === 'contradicted');
+  }, [filteredClaims]);
+
+  const falseClaimsCount = claimsNeedingFix.length;
+  const trueClaimsCount = filteredClaims.filter(c => c.status === 'supported').length;
+  const claimsCount = claims?.length ?? 0;
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        
-        // Extract claims
-        const extractResponse = await fetch(`/api/extractclaims`, {
+        const extractResponse = await fetch('/api/extractclaims', {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sentences: initialSentences.map((s) => s.text) }),
+          body: JSON.stringify({ sentences: editableText.split('\n').map(s => s.trim()).filter(Boolean) }),
         });
 
         if (!extractResponse.ok) {
           throw new Error(`Failed to extract claims: ${extractResponse.statusText}`);
         }
 
-        setClaimsCount(initialSentences.length);
+        const extractedData: ExtractClaimsResponse = await extractResponse.json();
+        const parsedExtractedData = Schemas.ExtractClaimsResponseSchema.parse(extractedData);
+        const extractedClaims = parsedExtractedData.claims;
 
-        const extractedData = await extractResponse.json();
-        const { claims: extractedClaims } = Schemas.ExtractClaimsResponseSchema.parse(extractedData);
-        // Process claims in parallel
+        // For each extracted claim, find start/end indices in `editableText`
+        const indexedClaims = extractedClaims.map((extractedClaim, index) => {
+          const searchStr = extractedClaim.original_text;
+          const start = editableText.indexOf(searchStr);
+          if (start === -1) {
+            // If not found, fallback to insufficient information
+            return {
+              id: index,
+              exactText: searchStr,
+              start: 0,
+              end: 0,
+              status: 'insufficient information' as ClaimStatus,
+              confidence: 0,
+              explanation: '',
+              sources: []
+            };
+          }
+          const end = start + searchStr.length;
+          return {
+            id: index,
+            exactText: searchStr,
+            start,
+            end,
+            // We'll initially mark as insufficient and then verify
+            status: 'insufficient information' as ClaimStatus,
+            confidence: 0,
+            explanation: '',
+            sources: []
+          };
+        });
+
+        // Process claims (exa search + verify)
         const processedClaims = await Promise.all(
-          extractedClaims.map(async (extractedClaim) => {
-            try {
-              const [exaResponse, verifyResponse] = await Promise.all([
-                fetch(`/api/exasearch`, {
+          indexedClaims.map(async (c) => {
+            if (c.status === 'insufficient information') {
+              // Try to verify with exa search
+              try {
+                const exaResponse = await fetch('/api/exasearch', {
                   method: "POST", 
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ claim: extractedClaim.text }),
-                }),
-                fetch(`/api/verifyclaims`, {
+                  body: JSON.stringify({ claim: c.exactText }),
+                });
+
+                if (!exaResponse.ok) {
+                  throw new Error(`ExaSearch failed: ${exaResponse.statusText}`);
+                }
+
+                const exaData: ExaSearchResponse = await exaResponse.json();
+                const { results: exaResults } = Schemas.ExaSearchResponseSchema.parse(exaData);
+
+                if (exaResults.length === 0) {
+                  return c; // remains insufficient info
+                }
+
+                // Verify the claim
+                const verifyResponse = await fetch('/api/verifyclaims', {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    claim: extractedClaim.text,
-                    sentenceIds: extractedClaim.sentenceIds,
-                    sources: [], // Will be populated after exa search
+                    claim: c.exactText,
+                    sources: exaResults,
                   }),
-                })
-              ]);
+                });
 
-              if (!exaResponse.ok) {
-                throw new Error(`ExaSearch failed: ${exaResponse.statusText}`);
+                if (!verifyResponse.ok) {
+                  throw new Error(`Claim verification failed: ${verifyResponse.statusText}`);
+                }
+
+                const verifiedData: VerifiedClaimResponse = await verifyResponse.json();
+                const { claim: verifiedClaim } = Schemas.VerifiedClaimResponseSchema.parse(verifiedData);
+
+                return { ...c, ...verifiedClaim };
+              } catch (err) {
+                console.error(`Error verifying claim: ${c.exactText}`, err);
+                return c; // fallback to insufficient info
               }
-
-              const exaData = await exaResponse.json();
-              const { results: exaResults } = Schemas.ExaSearchResponseSchema.parse(exaData);
-
-              if (exaResults.length === 0) {
-                return null;
-              }
-
-              if (!verifyResponse.ok) {
-                throw new Error(`Claim verification failed: ${verifyResponse.statusText}`);
-              }
-
-              const verifiedData = await verifyResponse.json();
-              const { claim: verifiedClaim } = Schemas.VerifiedClaimResponseSchema.parse(verifiedData);
-
-              return verifiedClaim;
-            } catch (error) {
-              console.error(`Error processing claim: ${extractedClaim.text}`, error);
-              return null;
             }
+            return c;
           })
         );
 
-        const validClaims = processedClaims.filter((claim): claim is Claim => claim !== null);
-        
-        setClaims(validClaims);
-        setClaimsCount(validClaims.length);
-        setIssuesCount(validClaims.filter(claim => claim.status === 'contradicted').length);
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError(error instanceof Error ? error.message : "An error occurred");
+        setClaims(processedClaims);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);
       }
     };
 
     fetchInitialData();
-  }, [submissionId, initialSentences]);
-
-  const filteredClaims = useMemo(
-    () =>
-      claims?.filter((claim) => claim.status !== 'insufficient information') ?? [],
-    [claims]
-  );
-
-  const claimsNeedingFix = useMemo(
-    () =>
-      filteredClaims.filter((claim) => claim.status === 'contradicted'),
-    [filteredClaims]
-  );
-
-  const falseClaimsCount = claimsNeedingFix.length;
-  const trueClaimsCount = filteredClaims.length - falseClaimsCount;
-
-  const scrollToActiveElement = (
-    ref: React.RefObject<HTMLDivElement>,
-    selector: string
-  ) => {
-    if (ref.current) {
-      const activeElement = ref.current.querySelector(selector);
-      if (activeElement) {
-        activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (activeClaim) {
-      scrollToActiveElement(textRef, `[data-claim-id="${activeClaim.id}"]`);
-      scrollToActiveElement(claimsRef, `[data-claim-id="${activeClaim.id}"]`);
-
-      if (window.innerWidth < 1024) {
-        // Mobile view
-        setActiveTab('analysis');
-      }
-    }
-  }, [activeClaim]);
-
-  const highlightClaims = useMemo(() => {
-    if (isLoading) {
-      return (
-        <div className="space-y-4">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-[90%]" />
-          <Skeleton className="h-4 w-[95%]" />
-          <Skeleton className="h-4 w-[85%]" />
-        </div>
-      );
-    }
-
-    let segments: React.ReactNode[] = [];
-    let lastIndex = 0;
-
-    const sortedClaims = [...filteredClaims].sort((a, b) => {
-      return a.sentenceIds[0] - b.sentenceIds[0];
-    });
-
-    sortedClaims.forEach((claim) => {
-      const claimSentences = sentences.filter((sentence) =>
-        claim.sentenceIds.includes(sentence.id)
-      );
-      const claimText = claimSentences.map((s) => s.text).join(' ');
-      const index = displayText.indexOf(claimText, lastIndex);
-      if (index !== -1) {
-        const previousText = displayText.substring(lastIndex, index);
-        segments.push(
-          previousText.split('\n').map((line, i) => (
-            <React.Fragment key={`text-${lastIndex}-${i}`}>
-              {i > 0 && <br />}
-              {line}
-            </React.Fragment>
-          ))
-        );
-
-        const isHighlighted = claim.status !== 'insufficient information';
-        segments.push(
-          <TooltipProvider key={`claim-${index}`}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  data-claim-id={claim.id}
-                  className={`
-                    inline transition-colors duration-200 ease-in-out
-                    ${
-                      isHighlighted
-                        ? claim.status === 'supported'
-                          ? 'bg-green-50 hover:bg-green-100 dark:bg-green-950/30'
-                          : claim.status === 'contradicted'
-                          ? 'bg-red-50 hover:bg-red-100 dark:bg-red-950/30'
-                          : 'bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/30'
-                        : ''
-                    }
-                    ${
-                      activeClaim?.id === claim.id
-                        ? claim.status === 'supported'
-                          ? 'bg-green-100 ring-1 ring-green-200'
-                          : claim.status === 'contradicted'
-                          ? 'bg-red-100 ring-1 ring-red-200'
-                          : 'bg-yellow-100 ring-1 ring-yellow-200'
-                        : ''
-                    }
-                    rounded-sm px-0.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-200
-                  `}
-                  onClick={() => {
-                    setSelectedClaimFromText(claim);
-                    setActiveClaim(claim);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedClaimFromText(claim);
-                      setActiveClaim(claim);
-                    }
-                  }}
-                  tabIndex={0}
-                  role="button"
-                  aria-pressed={activeClaim?.id === claim.id}
-                >
-                  {claimText}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="flex items-center gap-2">
-                  {claim.status === 'supported' ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  ) : claim.status === 'contradicted' ? (
-                    <AlertTriangle className="w-4 h-4 text-red-500" />
-                  ) : (
-                    <HelpCircle className="w-4 h-4 text-yellow-500" />
-                  )}
-                  <p>
-                    {claim.status === 'supported'
-                      ? 'Verified claim'
-                      : claim.status === 'contradicted'
-                      ? 'False claim'
-                      : 'Debated claim'}
-                  </p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-        lastIndex = index + claimText.length;
-      }
-    });
-
-    const remainingText = displayText.substring(lastIndex);
-    segments.push(
-      remainingText.split('\n').map((line, i) => (
-        <React.Fragment key={`text-end-${i}`}>
-          {i > 0 && <br />}
-          {line}
-        </React.Fragment>
-      ))
-    );
-
-    return segments;
-  }, [displayText, filteredClaims, activeClaim, sentences, isLoading]);
+  }, [submissionId, editableText]);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(displayText);
+    await navigator.clipboard.writeText(editableText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -325,23 +186,114 @@ const FactChecker: React.FC<FactCheckerProps> = ({
 
   const handleCancelEditing = () => {
     setIsEditing(false);
-    setEditableText(sentences.map((s) => s.text).join(' '));
+    setEditableText(text);
   };
 
   const handleScan = () => {
-    // TODO: Implement scan functionality
+    // After editing, re-run extraction
     setIsEditing(false);
   };
 
   const handleUpgrade = () => {
-    // TODO: Implement upgrade functionality
+    // Implement upgrade functionality
   };
 
   const handleBackToText = () => {
-    setSelectedClaimFromText(null);
     setActiveClaim(null);
     setActiveTab('text');
   };
+
+  // Highlight logic based on start/end indices
+  const highlightClaims = useMemo(() => {
+    if (isLoading || !claims) {
+      return <>{editableText}</>;
+    }
+
+    const sortedClaims = [...claims].filter(c => c.start !== c.end).sort((a, b) => a.start - b.start);
+
+    let lastIndex = 0;
+    const segments: React.ReactNode[] = [];
+    sortedClaims.forEach((claim) => {
+      if (claim.start >= 0 && claim.end <= editableText.length && claim.start >= lastIndex) {
+        const before = editableText.slice(lastIndex, claim.start);
+        if (before) segments.push(<React.Fragment key={`text-${lastIndex}`}>{before}</React.Fragment>);
+
+        const isHighlighted = claim.status !== 'insufficient information';
+        const highlightClasses = isHighlighted
+          ? claim.status === 'supported'
+            ? 'bg-green-50 hover:bg-green-100 dark:bg-green-950/30'
+            : claim.status === 'contradicted'
+            ? 'bg-red-50 hover:bg-red-100 dark:bg-red-950/30'
+            : 'bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/30'
+          : '';
+
+        const isActive = activeClaim?.id === claim.id;
+        const activeRing = isActive
+          ? (claim.status === 'supported'
+            ? 'bg-green-100 ring-1 ring-green-200'
+            : claim.status === 'contradicted'
+            ? 'bg-red-100 ring-1 ring-red-200'
+            : 'bg-yellow-100 ring-1 ring-yellow-200')
+          : '';
+
+        const claimText = editableText.slice(claim.start, claim.end);
+
+        segments.push(
+          <TooltipProvider key={`claim-${claim.id}`}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  data-claim-id={claim.id}
+                  className={`inline transition-colors duration-200 ease-in-out ${highlightClasses} ${activeRing} rounded-sm px-0.5 py-0.5 cursor-pointer`}
+                  onClick={() => setActiveClaim(claim)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveClaim(claim);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={isActive}
+                >
+                  {claimText}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex items-center gap-2">
+                  {claim.status === 'supported' ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  ) : claim.status === 'contradicted' ? (
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                  ) : claim.status === 'debated' ? (
+                    <HelpCircle className="w-4 h-4 text-yellow-500" />
+                  ) : (
+                    <HelpCircle className="w-4 h-4 text-gray-500" />
+                  )}
+                  <p>
+                    {claim.status === 'supported'
+                      ? 'Verified claim'
+                      : claim.status === 'contradicted'
+                      ? 'False claim'
+                      : claim.status === 'debated'
+                      ? 'Debated claim'
+                      : 'Insufficient info'}
+                  </p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+
+        lastIndex = claim.end;
+      }
+    });
+
+    const remaining = editableText.slice(lastIndex);
+    if (remaining) segments.push(<React.Fragment key={`text-end`}>{remaining}</React.Fragment>);
+
+    return segments;
+  }, [claims, editableText, activeClaim, isLoading]);
 
   return (
     <div className="w-full h-full grid grid-rows-[1fr,auto] bg-white border-t border-gray-200 mt-16">
@@ -357,25 +309,17 @@ const FactChecker: React.FC<FactCheckerProps> = ({
               <TabsTrigger value="text">Text</TabsTrigger>
               <TabsTrigger value="analysis">Analysis</TabsTrigger>
             </TabsList>
-            <TabsContent
-              value="text"
-              className="h-[calc(100vh-250px)] overflow-y-auto"
-            >
+            <TabsContent value="text" className="h-[calc(100vh-250px)] overflow-y-auto">
               <div className="p-6 pt-4">
                 <div className="flex justify-end mb-4">
                   {!isEditing && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleStartEditing}
-                      className="gap-2"
-                    >
+                    <Button variant="outline" size="sm" onClick={handleStartEditing} className="gap-2">
                       <Pencil className="w-4 h-4" />
                       Edit
                     </Button>
                   )}
                 </div>
-                <div ref={textRef}>
+                <div>
                   {isEditing ? (
                     <EditableText
                       text={editableText}
@@ -388,26 +332,22 @@ const FactChecker: React.FC<FactCheckerProps> = ({
                 </div>
               </div>
             </TabsContent>
-            <TabsContent
-              value="analysis"
-              className="h-[calc(100vh-250px)] overflow-y-auto"
-            >
+            <TabsContent value="analysis" className="h-[calc(100vh-250px)] overflow-y-auto">
               <div className="p-4">
-                {selectedClaimFromText ? (
+                {activeClaim ? (
                   <SingleClaimView
-                    claim={selectedClaimFromText}
+                    claim={activeClaim}
                     onBack={handleBackToText}
                   />
                 ) : (
                   <>
-                    <ClaimsScale claimsCount={claimsCount ?? 0} />
+                    <ClaimsScale claimsCount={claimsCount} />
                     <div className="flex justify-between items-center mt-4 mb-2">
                       <h3 className="text-lg font-semibold">Claims</h3>
                     </div>
-                    <div ref={claimsRef} className="space-y-3">
-                      {error ? (
-                        <div className="text-red-500">{error}</div>
-                      ) : isLoading ? (
+                    <div className="space-y-3">
+                      {error && <div className="text-red-500">{error}</div>}
+                      {isLoading ? (
                         <>
                           <Skeleton className="h-24 w-full" />
                           <Skeleton className="h-24 w-full" />
@@ -420,11 +360,7 @@ const FactChecker: React.FC<FactCheckerProps> = ({
                             claim={claim}
                             isActive={claim.id === expandedClaimId}
                             isExpanded={claim.id === expandedClaimId}
-                            onClick={() =>
-                              setExpandedClaimId((prevId) =>
-                                prevId === claim.id ? null : claim.id
-                              )
-                            }
+                            onClick={() => setExpandedClaimId((prevId) => prevId === claim.id ? null : claim.id)}
                           />
                         ))
                       )}
@@ -454,7 +390,7 @@ const FactChecker: React.FC<FactCheckerProps> = ({
                     </Button>
                   )}
                 </div>
-                <div ref={textRef} className="overflow-y-auto">
+                <div className="overflow-y-auto">
                   {isEditing ? (
                     <EditableText
                       text={editableText}
@@ -479,21 +415,26 @@ const FactChecker: React.FC<FactCheckerProps> = ({
             <ResizableHandle />
             <ResizablePanel defaultSize={40} minSize={30}>
               <div className="p-4 h-full overflow-y-auto">
-                {selectedClaimFromText ? (
+                {activeClaim ? (
                   <SingleClaimView
-                    claim={selectedClaimFromText}
+                    claim={activeClaim}
                     onBack={handleBackToText}
                   />
                 ) : (
                   <>
-                    <ClaimsScale claimsCount={claimsCount ?? 0} />
+                    <ClaimsScale claimsCount={claimsCount} />
                     <div className="flex justify-between items-center mt-4 mb-2">
                       <h3 className="text-lg font-semibold">Claims</h3>
                     </div>
-                    <div ref={claimsRef} className="space-y-3">
-                      {error ? (
-                        <div className="text-red-500">{error}</div>
-                      ) :(
+                    <div className="space-y-3">
+                      {error && <div className="text-red-500">{error}</div>}
+                      {isLoading ? (
+                        <>
+                          <Skeleton className="h-24 w-full" />
+                          <Skeleton className="h-24 w-full" />
+                          <Skeleton className="h-24 w-full" />
+                        </>
+                      ) : (
                         filteredClaims.map((claim) => (
                           <ClaimCard
                             key={claim.id}
@@ -547,8 +488,7 @@ const FactChecker: React.FC<FactCheckerProps> = ({
               <Skeleton className="h-6 w-16" />
             ) : (
               <Badge variant="secondary" className="h-6 sm:h-7 shrink-0">
-                {falseClaimsCount}{' '}
-                {falseClaimsCount === 1 ? 'issue' : 'issues'}
+                {falseClaimsCount} {falseClaimsCount === 1 ? 'issue' : 'issues'}
               </Badge>
             )}
 
@@ -557,7 +497,7 @@ const FactChecker: React.FC<FactCheckerProps> = ({
               <Skeleton className="h-6 w-20" />
             ) : (
               <Badge variant="secondary" className="h-6 sm:h-7 shrink-0">
-                {trueClaimsCount} claims
+                {trueClaimsCount} verified
               </Badge>
             )}
 

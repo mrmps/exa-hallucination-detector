@@ -5,35 +5,16 @@ interface ClaimsScaleProps {
 }
 
 export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
-  if (claimsCount === null) {
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="h-4 w-48" />
-        </div>
-        <div className="flex items-stretch h-2 rounded-full overflow-hidden">
-          <div className="bg-gray-200 flex-1" />
-          <div className="bg-gray-200 flex-1" />
-          <div className="bg-gray-200 flex-1" />
-          <div className="bg-gray-200 flex-1" />
-          <div className="bg-gray-200 flex-1" />
-        </div>
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-5 w-32" />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-gray-900">
-          {claimsCount} claims found in this document
-        </h2>
+        {claimsCount === null ? (
+          <Skeleton className="h-7 w-64" />
+        ) : (
+          <h2 className="text-xl font-semibold text-gray-900">
+            {claimsCount} claims found in this document
+          </h2>
+        )}
         <p className="text-gray-500 text-sm">
           Click on claims to discover new sources.
         </p>
@@ -59,4 +40,3 @@ export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
     </div>
   )
 }
-

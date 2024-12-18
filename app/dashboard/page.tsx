@@ -50,7 +50,7 @@ export default async function DashboardPage({
 
   return (
     <div className="flex h-[100dvh] flex-col items-center overflow-hidden">
-      <FactChecker submissionId={id} sentences={initialSentences} />
+      <FactChecker submissionId={id} sentences={initialSentences} text={submission.content} />
     </div>
   );
 }
