@@ -1,70 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from "@ai-sdk/openai";
-import { generateObject } from 'ai';
-import { z } from 'zod';
-import { VerifyClaimsLLMResponseSchema, SourceSchema } from '@/lib/schemas';
+import { generateObject } from "ai";
+import {
+  VerifyClaimsRequestSchema,
+  VerifyClaimsResponseSchema,
+} from '@/lib/schemas';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const InputSchema = z.object({
-      claim: z.string(),
-      sources: z.array(SourceSchema)
-    });
+    const json = await req.json();
+    const { claims } = VerifyClaimsRequestSchema.parse(json);
 
-    const { claim, sources } = InputSchema.parse(body);
+    // We'll provide all claims and sources and ask the LLM to return a JSON array with verification results.
+    const claimsJson = JSON.stringify(claims, null, 2);
 
-    // Generate verification response from LLM
     const { object } = await generateObject({
       model: openai('gpt-4o-mini'),
-      schema: VerifyClaimsLLMResponseSchema,
-      prompt: `You are an expert fact-checker with extensive experience in verification and source analysis. Your task is to carefully analyze the provided claim against the given sources to determine its veracity.
+      schema: VerifyClaimsResponseSchema,
+      prompt: `You are an expert fact-checker. Given a list of claims with their sources, return a JSON object with "verifications", which is an array corresponding to each claim in the same order.
 
-      Claim to factcheck: ${claim}
-      Sources: ${JSON.stringify(sources, null, 2)}
+For each claim, determine:
+- status: "supported", "contradicted", "debated", or "insufficient information"
+- confidence: a number 0-100
+- explanation: a detailed explanation referencing the sources
+- suggestedFix: optional string if contradicted
 
-      Approach your analysis systematically:
-      1. First, thoroughly read and understand the claim
-      2. Examine each source carefully, looking for direct evidence that supports or contradicts the claim
-      3. Consider the reliability and relevance of each source
-      4. Look for any nuances or context that might affect the claim's accuracy
-      
-      Provide a comprehensive verification response that includes:
-      - A clear verdict on the claim's status:
-        * SUPPORTED: When sources directly confirm the claim
-        * CONTRADICTED: When sources directly disprove the claim
-        * DEBATED: When sources show significant disagreement
-        * INSUFFICIENT INFORMATION: When sources don't provide enough evidence
-      
-      - A confidence score (0-100) that reflects:
-        * The quality and quantity of available evidence
-        * The directness of the source material
-        * The consistency across multiple sources
-        * The reliability of the sources
-      
-      - A detailed explanation including:
-        * Direct quotes from sources that support your verdict
-        * Analysis of any contradictions or nuances
-        * Discussion of source reliability and relevance
-        * Clear reasoning for your confidence score
-      
-      - If the claim is contradicted:
-        * Provide a specific correction based on the sources
-        * Explain what makes the original claim incorrect
-        * Suggest precise language for an accurate version
-      
-      Always cite specific sources and quotes to support your assessment.`,
-      output: 'object'
+Return strictly in this format:
+{
+  "verifications": [
+    {
+      "claimId": number,
+      "status": "supported"|"contradicted"|"debated"|"insufficient information",
+      "confidence": number,
+      "explanation": string,
+      "suggestedFix": string (optional)
+    },
+    ...
+  ]
+}
+
+No extra commentary. 
+
+Claims and sources:
+${claimsJson}`
     });
 
-    const verifiedClaim = VerifyClaimsLLMResponseSchema.parse(object);
-
-    return NextResponse.json(verifiedClaim);
-
+    const parsed = VerifyClaimsResponseSchema.parse(object);
+    return NextResponse.json(parsed);
   } catch (error: any) {
-    console.error('Verify claims API error:', error);
-    return NextResponse.json({ error: `Failed to verify claim | ${error.message || error}` }, { status: 500 });
+    console.error("Error in verifyclaims API:", error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: `Verification failed: ${message}` }, { status: 500 });
   }
 }

@@ -1,99 +1,110 @@
+// lib/schemas.ts
 import { z } from 'zod';
 
-// Source Schema
+// -----------------------------------
+// Extract Claims Schemas
+// -----------------------------------
+export const ExtractedClaimLLMResponseSchema = z.array(
+  z.object({
+    claim: z.string().describe("A single, verifiable claim extracted from the text."),
+    exact_text: z.string().describe("The exact continuous substring of the original text that contains the claim.")
+  })
+);
+
+export const ExtractClaimsResponseSchema = z.object({
+  claims: z.array(z.object({
+    id: z.number(),
+    claim: z.string(),
+    exact_text: z.string(),
+    start: z.number(),
+    end: z.number()
+  }))
+});
+export type ExtractClaimsResponse = z.infer<typeof ExtractClaimsResponseSchema>;
+
+export const ExtractClaimsRequestSchema = z.object({
+  text: z.string().min(1),
+});
+export type ExtractClaimsRequest = z.infer<typeof ExtractClaimsRequestSchema>;
+
+
+// -----------------------------------
+// Search Claims Schemas
+// -----------------------------------
 export const SourceSchema = z.object({
   url: z.string().url(),
   title: z.string().optional(),
   quote: z.string().optional(),
-  relevance: z.number().optional(),
-  supports: z.boolean().optional(),
+  relevance: z.number().min(0).max(100).optional(),
+  supports: z.boolean().optional()
 });
+export type Source = z.infer<typeof SourceSchema>;
 
-// Claim Status Type
+export const SearchClaimsRequestSchema = z.object({
+  claims: z.array(z.object({
+    id: z.number(),
+    claim: z.string()
+  }))
+});
+export type SearchClaimsRequest = z.infer<typeof SearchClaimsRequestSchema>;
+
+export const SearchClaimsResponseSchema = z.object({
+  results: z.array(z.object({
+    claimId: z.number(),
+    sources: z.array(SourceSchema)
+  }))
+});
+export type SearchClaimsResponse = z.infer<typeof SearchClaimsResponseSchema>;
+
+
+// -----------------------------------
+// Verification Schemas
+// -----------------------------------
 export const ClaimStatusSchema = z.enum([
   'supported',
   'debated',
   'contradicted',
-  'insufficient information',
-  'not yet verified',
+  'insufficient information'
 ]);
 
-// Claim Schema
-// This is the final form of a claim after merging extraction (exactText, start, end) and verification (status, confidence, explanation).
-export const ClaimSchema = z.object({
-  id: z.number(),
-  exactText: z.string(),
-  claim: z.string(),
-  start: z.number(),
-  end: z.number(),
+export type ClaimStatus = z.infer<typeof ClaimStatusSchema>;
+
+export const VerifyClaimsRequestSchema = z.object({
+  claims: z.array(z.object({
+    claimId: z.number(),
+    claim: z.string(),
+    sources: z.array(SourceSchema)
+  }))
+});
+export type VerifyClaimsRequest = z.infer<typeof VerifyClaimsRequestSchema>;
+
+export const VerificationResultSchema = z.object({
+  claimId: z.number(),
   status: ClaimStatusSchema,
-  confidence: z.number().nullable(),
-  explanation: z.string().nullable(),
-  sources: z.array(SourceSchema),
-  suggestedFix: z.string().optional(),
+  confidence: z.number().min(0).max(100),
+  explanation: z.string(),
+  suggestedFix: z.string().optional()
 });
+export type VerificationResult = z.infer<typeof VerificationResultSchema>;
 
-// FactCheckerProps Schema
-export const FactCheckerPropsSchema = z.object({
-  submissionId: z.string(),
-  text: z.string(),
-  scansLeft: z.number(),
-  totalScans: z.number(),
-  issuesCount: z.number(),
-  claimsCount: z.number(),
-  claims: z.array(ClaimSchema),
+export const VerifyClaimsResponseSchema = z.object({
+  verifications: z.array(VerificationResultSchema)
 });
-
-// Extract Claims
-// The extraction step returns claims with 'exact_text' but no verification fields.
-export const ExtractedClaimLLMResponseSchema = z.object({
-  claim: z.string().describe("The exact claim text extracted by the LLM."),
-  exact_text: z.string().describe("The original text from which the claim was extracted."),
-}).describe("Schema representing a single claim extracted by the LLM from the provided text.");
+export type VerifyClaimsResponse = z.infer<typeof VerifyClaimsResponseSchema>;
 
 
-// After processing, we add start/end positions
-export const ExtractedClaimSchema = z.object({
-  claim: z.string(),
-  exact_text: z.string(),
-  start: z.number(),
-  end: z.number(),
-});
-
-export const ExtractClaimsResponseSchema = z.object({
-  claims: z.array(ExtractedClaimSchema),
-});
-
-// ExaSearch
-export const ExaSearchRequestSchema = z.object({
-  claim: z.string(),
-});
-
-export const ExaResultSchema = z.object({
-  url: z.string().url(),
-  text: z.string(),
-  title: z.string().optional(),
-  quote: z.string().optional(),
-  relevance: z.number().optional(),
-  supports: z.boolean().optional(),
-});
-
-export const ExaSearchResponseSchema = z.object({
-  results: z.array(ExaResultSchema),
-});
-
-export const VerifyClaimsLLMResponseSchema = z.object({
-  status: z.enum(['supported', 'contradicted', 'insufficient information', 'debated'])
-    .describe("The verified status of the claim after analysis by the LLM."),
-  confidence: z.number().min(0).max(100).describe("A numeric confidence level (0-100) in the verification status."),
-  explanation: z.string().describe("A textual explanation for why the claim was assigned its verification status."),
-  suggestedFix: z.string().optional().describe("An optional suggested fix if the claim is incorrect or unclear."),
-  sources: z.array(z.object({
-    url: z.string().describe("A URL pointing to a source used in claim verification."),
-    title: z.string().describe("The title of the source."),
-    quote: z.string().describe("A direct quote from the source related to the claim."),
-    relevance: z.number().min(0).max(100).describe("A relevance score indicating how closely the source pertains to the claim."),
-    supports: z.boolean().describe("Indicates whether the source supports the claim or contradicts it."),
-  }).describe("A source used to verify the claim."))
-  .describe("An array of sources used to verify the claim and determine its status."),
-}).describe("Schema representing the LLM's verification output for a given claim, including status, confidence, and sources.");
+// -----------------------------------
+// Final Claim Type (Client-side)
+// -----------------------------------
+export interface Claim {
+  id: number;
+  exactText: string;
+  claim: string;
+  start: number;
+  end: number;
+  status: ClaimStatus | 'not yet verified';
+  confidence: number | null;
+  explanation: string | null;
+  sources: Source[];
+  suggestedFix?: string;
+}

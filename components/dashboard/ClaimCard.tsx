@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Check, ChevronDown, ChevronUp, X, AlertTriangle } from 'lucide-react'
-import { type Claim } from '@/lib/types'
+import { Source, type Claim } from '@/lib/types'
 import { SourceDetail } from './source-detail'
 import { getStatusColor } from '@/utils/helpers'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -77,7 +77,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, isActive, isExpande
         </div>
         {isExpanded && claim?.sources && (
           <div className="mt-2 space-y-2">
-            {claim.sources.map((source, index) => (
+            {claim.sources.map((source: Source, index: number) => (
               <SourceDetail key={index} source={source} />
             ))}
           </div>

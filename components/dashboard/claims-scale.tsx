@@ -1,7 +1,7 @@
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ClaimsScaleProps {
-  claimsCount: number | null
+  claimsCount: number | null;
 }
 
 export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
@@ -20,26 +20,33 @@ export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
         </p>
       </div>
       <div className="flex items-stretch h-2 rounded-full overflow-hidden">
+        {/* Updated colors to subtle pastel tones */}
         <div className="bg-emerald-100 flex-1" />
-        <div className="bg-emerald-200 flex-1" />
-        <div className="bg-amber-200 flex-1" />
-        <div className="bg-rose-200 flex-1" />
-        <div className="bg-rose-300 flex-1" />
+        <div className="bg-amber-100 flex-1" />
+        <div className="bg-rose-100 flex-1" />
+        <div className="bg-gray-100 flex-1" />
       </div>
       <div className="grid grid-cols-4 gap-4 text-sm">
         <div>
           <h3 className="text-emerald-700 font-semibold">Supported by sources</h3>
         </div>
         <div>
-          <h3 className="text-amber-700 font-semibold">Debated by sources</h3>
+          <h3 className="text-amber-700 font-semibold">
+            Debated by sources
+          </h3>
         </div>
         <div>
-          <h3 className="text-rose-700 font-semibold">Contradicted by sources</h3>
+          <h3 className="text-rose-700 font-semibold">
+            Contradicted by sources
+          </h3>
         </div>
         <div>
-          <h3 className="text-gray-700 font-semibold">Insufficient information</h3>
+          <h3 className="text-gray-700 font-semibold">
+            Insufficient information
+          </h3>
         </div>
       </div>
     </div>
-  )
+  );
 }
+

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Check, X, AlertTriangle, ArrowLeft } from 'lucide-react'
-import { Claim } from '@/lib/types'
+import { Claim, Source } from '@/lib/types'
 import { SourceDetail } from './source-detail'
 import { getStatusColor } from '@/utils/helpers'
 
@@ -60,7 +60,7 @@ export const SingleClaimView: React.FC<SingleClaimViewProps> = ({ claim, onBack 
             </div>
           </div>
           <div className="mt-2 space-y-2">
-            {claim.sources.map((source, index) => (
+            {claim.sources.map((source: Source, index: number) => (
               <SourceDetail key={index} source={source} />
             ))}
           </div>

@@ -1,26 +1,103 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { type ClaimStatus, type Claim } from '@/lib/types';
-import { ExtractClaimsResponseSchema, ExaSearchResponseSchema, VerifyClaimsLLMResponseSchema } from '@/lib/schemas';
+import React, { useState, useMemo } from "react";
+import useSWR from "swr";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { CheckCircle2, AlertTriangle, HelpCircle, Pencil, Copy, CheckCheck } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { ClaimsScale } from '@/components/dashboard/claims-scale';
-import { ClaimCard } from '@/components/dashboard/claim-card';
-import { SingleClaimView } from '@/components/dashboard/single-claim-view';
-import { TextActionBar } from '@/components/dashboard/text-action-bar';
-import { EditableText } from '@/components/dashboard/editable-text';
+import {
+  ExtractClaimsResponse,
+  SearchClaimsResponse,
+  VerifyClaimsResponse,
+} from "@/lib/schemas";
 
-import { VerifyClaimsLLMResponse, ExtractClaimsResponse, ExaSearchResponse } from '@/lib/types';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { ClaimsScale } from "@/components/dashboard/claims-scale";
+import { ClaimCard } from "@/components/dashboard/claim-card";
+import { SingleClaimView } from "@/components/dashboard/single-claim-view";
+import { TextActionBar } from "@/components/dashboard/text-action-bar";
+import { EditableText } from "@/components/dashboard/editable-text";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
+  Pencil,
+  Copy,
+  CheckCheck,
+} from "lucide-react";
+
+import type { Claim } from "@/lib/schemas";
 
 const MAX_CHARACTERS = 5000;
+
+// Fetchers
+async function fetchExtractClaims(
+  url: string,
+  text: string
+): Promise<ExtractClaimsResponse> {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!resp.ok) throw new Error(`Extraction failed: ${resp.statusText}`);
+  return resp.json();
+}
+
+async function fetchSearchClaims(
+  url: string,
+  claimIdsString: string,
+  extractedClaims: Claim[]
+): Promise<SearchClaimsResponse> {
+  const resp = await fetch("/api/searchclaims", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      claims: extractedClaims.map((c) => ({ id: c.id, claim: c.claim })),
+    }),
+  });
+  if (!resp.ok) throw new Error(`Search failed: ${resp.statusText}`);
+  return resp.json();
+}
+
+async function fetchVerifyClaims(
+  url: string,
+  claimIdsString: string,
+  claimsWithSources: Claim[]
+): Promise<VerifyClaimsResponse> {
+  const claimsForVerify = claimsWithSources.map((c) => ({
+    claimId: c.id,
+    claim: c.claim,
+    sources: c.sources,
+  }));
+  const resp = await fetch("/api/verifyclaims", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ claims: claimsForVerify }),
+  });
+  if (!resp.ok) throw new Error(`Verify failed: ${resp.statusText}`);
+  return resp.json();
+}
+
+// SWR Options to prevent automatic revalidation
+const swrOptions = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  revalidateIfStale: false,
+};
 
 interface FactCheckerProps {
   submissionId: string;
@@ -28,173 +105,119 @@ interface FactCheckerProps {
 }
 
 export default function FactChecker({ submissionId, text }: FactCheckerProps) {
-  const [claims, setClaims] = useState<Claim[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isExtracting, setIsExtracting] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [editableText, setEditableText] = useState(text);
+  const [activeTab, setActiveTab] = useState<"text" | "analysis">("text");
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeClaim, setActiveClaim] = useState<Claim | null>(null);
+  const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [scansLeft, setScansLeft] = useState(5);
   const [totalScans, setTotalScans] = useState(10);
 
-  const [activeClaim, setActiveClaim] = useState<Claim | null>(null);
-  const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'text' | 'analysis'>('text');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editableText, setEditableText] = useState(text);
-  const [copied, setCopied] = useState(false);
+  const hasText = editableText.trim().length > 0;
 
-  useEffect(() => {
-    const extractClaims = async () => {
-      try {
-        setIsExtracting(true);
-        setIsVerifying(false);
-        setClaims(null);
-        setError(null);
+  // 1. Extract Claims
+  const {
+    data: extractData,
+    error: extractError,
+    isLoading: isExtracting,
+  } = useSWR(
+    hasText ? ["/api/extractclaims", editableText] : null,
+    ([url, t]) => fetchExtractClaims(url, t),
+    swrOptions
+  );
 
-        const extractResponse = await fetch('/api/extractclaims', {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: editableText }),
-        });
-        if (!extractResponse.ok) {
-          throw new Error(`Failed to extract claims: ${extractResponse.statusText}`);
-        }
+  const extractedClaims: Claim[] | null = useMemo(() => {
+    if (!extractData) return null;
+    return extractData.claims.map((c) => ({
+      id: c.id,
+      exactText: c.exact_text,
+      claim: c.claim,
+      start: c.start,
+      end: c.end,
+      status: "not yet verified" as const,
+      confidence: null,
+      explanation: null,
+      sources: [],
+    }));
+  }, [extractData]);
 
-        const extractedData: ExtractClaimsResponse = await extractResponse.json();
-        const parsedExtractedData = ExtractClaimsResponseSchema.parse(extractedData);
-        const extractedClaims = parsedExtractedData.claims;
+  // Create a stable key for search
+  const extractedClaimsKey =
+    extractedClaims && extractedClaims.length > 0
+      ? extractedClaims.map((c) => c.id).join(",")
+      : null;
 
-        const initialClaims: Claim[] = extractedClaims.map((extractedClaim, index) => {
-          const { start, end, claim } = extractedClaim;
-          const exactText = editableText.slice(start, end);
+  // 2. Search Claims
+  const {
+    data: searchData,
+    error: searchError,
+    isLoading: isSearching,
+  } = useSWR(
+    extractedClaimsKey ? ["/api/searchclaims", extractedClaimsKey] : null,
+    ([url, ids]) => fetchSearchClaims(url, ids, extractedClaims || []),
+    swrOptions
+  );
 
-          return {
-            id: index,
-            exactText,
-            claim,
-            start,
-            end,
-            status: 'not yet verified',
-            confidence: null,
-            explanation: null,
-            sources: []
-          };
-        });
+  const claimsWithSources: Claim[] | null = useMemo(() => {
+    if (!extractedClaims) return null;
+    if (!searchData) return extractedClaims;
+    return extractedClaims.map((c) => {
+      const found = searchData.results.find((r) => r.claimId === c.id);
+      return found ? { ...c, sources: found.sources } : c;
+    });
+  }, [extractedClaims, searchData]);
 
-        setClaims(initialClaims);
-        setIsExtracting(false);
+  // Create a stable key for verify
+  const allUnverified =
+    claimsWithSources?.every((c) => c.status === "not yet verified") ?? false;
+  const verifyKey =
+    claimsWithSources && claimsWithSources.length > 0 && allUnverified
+      ? claimsWithSources.map((c) => c.id).join(",")
+      : null;
 
-        // Start verification in background
-        verifyClaims(initialClaims);
-      } catch (err) {
-        console.error("Error extracting claims:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
-        setIsExtracting(false);
-      }
-    };
-    extractClaims();
-  }, [submissionId, editableText]);
+  // 3. Verify Claims
+  const {
+    data: verifyData,
+    error: verifyError,
+    isLoading: isVerifying,
+  } = useSWR(
+    verifyKey ? ["/api/verifyclaims", verifyKey] : null,
+    ([url, ids]) => fetchVerifyClaims(url, ids, claimsWithSources || []),
+    swrOptions
+  );
 
-  const verifyClaims = async (initialClaims: Claim[]) => {
-    try {
-      setIsVerifying(true);
-
-      // Process claims in parallel but with rate limiting
-      const verifyClaimWithRateLimit = async (claim: Claim, index: number) => {
-        try {
-          // Stagger initial requests
-          await new Promise(resolve => setTimeout(resolve, index * 250));
-
-          const exaResponse = await fetch('/api/exasearch', {
-            method: "POST", 
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ claim: claim.claim }),
-          });
-          if (!exaResponse.ok) {
-            throw new Error(`ExaSearch failed: ${exaResponse.statusText}`);
+  const finalClaims: Claim[] | null = useMemo(() => {
+    if (!claimsWithSources) return null;
+    if (!verifyData) return claimsWithSources;
+    return claimsWithSources.map((c) => {
+      const v = verifyData.verifications.find((x) => x.claimId === c.id);
+      return v
+        ? {
+            ...c,
+            status: v.status,
+            confidence: v.confidence,
+            explanation: v.explanation,
+            suggestedFix: v.suggestedFix,
           }
+        : c;
+    });
+  }, [claimsWithSources, verifyData]);
 
-          const exaData: ExaSearchResponse = await exaResponse.json();
-          const { results: exaResults } = ExaSearchResponseSchema.parse(exaData);
+  const claims = finalClaims;
+  const error =
+    extractError?.message ||
+    searchError?.message ||
+    verifyError?.message ||
+    null;
 
-          if (exaResults.length === 0) {
-            return {
-              ...claim,
-              status: 'insufficient information' as ClaimStatus,
-              explanation: 'No relevant sources were found to verify this claim.'
-            };
-          }
-
-          const verifyResponse = await fetch('/api/verifyclaims', {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              claim: claim.exactText,
-              sources: exaResults,
-            }),
-          });
-          if (!verifyResponse.ok) {
-            throw new Error(`Claim verification failed: ${verifyResponse.statusText}`);
-          }
-
-          const verifiedData: VerifyClaimsLLMResponse = await verifyResponse.json();
-          const verifiedClaimData = VerifyClaimsLLMResponseSchema.parse(verifiedData);
-
-          return {
-            ...claim,
-            status: verifiedClaimData.status,
-            confidence: verifiedClaimData.confidence,
-            explanation: verifiedClaimData.explanation,
-            sources: verifiedClaimData.sources.map(s => ({
-              url: s.url,
-              title: s.title,
-              quote: s.quote,
-              relevance: s.relevance,
-              supports: s.supports
-            })),
-            suggestedFix: verifiedClaimData.suggestedFix
-          };
-
-        } catch (err) {
-          console.error(`Error verifying claim: ${claim.claim}`, err);
-          return {
-            ...claim,
-            status: 'insufficient information' as ClaimStatus,
-            explanation: 'Verification failed due to technical issues. Please try again later.'
-          };
-        }
-      };
-
-      // Create verification promises for all claims
-      const verificationPromises = initialClaims.map((claim, index) => 
-        verifyClaimWithRateLimit(claim, index)
-      );
-
-      // Update claims as each verification completes
-      for (const verificationPromise of verificationPromises) {
-        const verifiedClaim = await verificationPromise;
-        setClaims(prevClaims => {
-          if (!prevClaims) return [verifiedClaim];
-          return prevClaims.map(c => 
-            c.id === verifiedClaim.id ? verifiedClaim : c
-          );
-        });
-      }
-
-    } catch (err) {
-      console.error("Error verifying claims:", err);
-      setError(err instanceof Error ? err.message : "An error occurred during verification");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const claimsNeedingFix = useMemo(() => {
-    return (claims ?? []).filter((claim) => claim.status === 'contradicted');
-  }, [claims]);
-
-  const falseClaimsCount = claimsNeedingFix.length;
-  const trueClaimsCount = (claims ?? []).filter(c => c.status === 'supported').length;
+  const falseClaimsCount = (claims ?? []).filter(
+    (c) => c.status === "contradicted"
+  ).length;
+  const trueClaimsCount = (claims ?? []).filter(
+    (c) => c.status === "supported"
+  ).length;
   const claimsCount = claims ? claims.length : null;
 
   const handleCopy = async () => {
@@ -217,51 +240,64 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     setIsEditing(false);
   };
 
-  const handleUpgrade = () => { /* Placeholder */ };
+  const handleUpgrade = () => {
+    /* Placeholder */
+  };
 
   const handleBackToText = () => {
     setActiveClaim(null);
-    setActiveTab('text');
+    setActiveTab("text");
   };
 
-  const showClaimsSkeleton = isExtracting || (!claims && isVerifying);
+  const showClaimsSkeleton =
+    (isExtracting || isSearching || isVerifying) && !claims;
 
   const highlightClaims = useMemo(() => {
     if (!claims) return <>{editableText}</>;
-
-    const sortedClaims = [...claims].filter(c => c.start !== c.end).sort((a, b) => a.start - b.start);
+    const sortedClaims = [...claims]
+      .filter((c) => c.start < c.end)
+      .sort((a, b) => a.start - b.start);
     let lastIndex = 0;
     const segments: React.ReactNode[] = [];
 
     sortedClaims.forEach((claim) => {
-      if (claim.start >= 0 && claim.end <= editableText.length && claim.start >= lastIndex) {
+      if (
+        claim.start >= 0 &&
+        claim.end <= editableText.length &&
+        claim.start >= lastIndex
+      ) {
         const before = editableText.slice(lastIndex, claim.start);
-        if (before) segments.push(<React.Fragment key={`text-${lastIndex}`}>{before}</React.Fragment>);
+        if (before)
+          segments.push(
+            <React.Fragment key={`text-${lastIndex}`}>{before}</React.Fragment>
+          );
 
-        const unverified = claim.status === 'not yet verified';
+        const unverified = claim.status === "not yet verified";
 
         const highlightClasses = unverified
-          ? 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700/30'
-          : claim.status === 'supported'
-            ? 'bg-green-50 hover:bg-green-100 dark:bg-green-950/30'
-            : claim.status === 'contradicted'
-              ? 'bg-red-50 hover:bg-red-100 dark:bg-red-950/30'
-              : claim.status === 'debated'
-                ? 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30'
-                : 'bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/30';
+          ? "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700/30"
+          : claim.status === "supported"
+          ? "bg-green-50 hover:bg-green-100 dark:bg-green-950/30"
+          : claim.status === "contradicted"
+          ? "bg-red-50 hover:bg-red-100 dark:bg-red-950/30"
+          : claim.status === "debated"
+          ? "bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30"
+          : "bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/30";
 
         const isActive = activeClaim?.id === claim.id;
         const activeRing = isActive
-          ? (unverified
-            ? 'bg-gray-300 ring-1 ring-gray-400'
-            : claim.status === 'supported'
-              ? 'bg-green-100 ring-1 ring-green-200'
-              : claim.status === 'contradicted'
-                ? 'bg-red-100 ring-1 ring-red-200'
-                : claim.status === 'debated'
-                  ? 'bg-blue-100 ring-1 ring-blue-200'
-                  : 'bg-yellow-100 ring-1 ring-yellow-200')
-          : '';
+          ? `ring-1 ${
+              unverified
+                ? "ring-gray-300"
+                : claim.status === "supported"
+                ? "ring-green-300"
+                : claim.status === "contradicted"
+                ? "ring-red-300"
+                : claim.status === "debated"
+                ? "ring-blue-300"
+                : "ring-yellow-300"
+            }`
+          : "";
 
         const claimText = editableText.slice(claim.start, claim.end);
 
@@ -272,10 +308,15 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                 <span
                   data-claim-id={claim.id}
                   className={`inline transition-colors duration-200 ease-in-out ${highlightClasses} ${activeRing} rounded-sm px-0.5 py-0.5 cursor-pointer`}
-                  onClick={() => setActiveClaim(claim)}
+                  onClick={() => {
+                    // If on mobile (activeTab === 'text'), switch to 'analysis' to show the SingleClaimView
+                    if (activeTab === "text") setActiveTab("analysis");
+                    setActiveClaim(claim);
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
+                      if (activeTab === "text") setActiveTab("analysis");
                       setActiveClaim(claim);
                     }
                   }}
@@ -290,26 +331,25 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                 <div className="flex items-center gap-2">
                   {unverified ? (
                     <AlertTriangle className="w-4 h-4 text-gray-500" />
-                  ) : claim.status === 'supported' ? (
+                  ) : claim.status === "supported" ? (
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  ) : claim.status === 'contradicted' ? (
+                  ) : claim.status === "contradicted" ? (
                     <AlertTriangle className="w-4 h-4 text-red-500" />
-                  ) : claim.status === 'debated' ? (
+                  ) : claim.status === "debated" ? (
                     <HelpCircle className="w-4 h-4 text-blue-500" />
                   ) : (
                     <HelpCircle className="w-4 h-4 text-yellow-500" />
                   )}
                   <p>
                     {unverified
-                      ? 'Not verified yet'
-                      : claim.status === 'supported'
-                        ? 'Verified claim'
-                        : claim.status === 'contradicted'
-                          ? 'False claim'
-                          : claim.status === 'debated'
-                            ? 'Debated claim'
-                            : 'Insufficient info'
-                    }
+                      ? "Not verified yet"
+                      : claim.status === "supported"
+                      ? "Verified claim"
+                      : claim.status === "contradicted"
+                      ? "False claim"
+                      : claim.status === "debated"
+                      ? "Debated claim"
+                      : "Insufficient info"}
                   </p>
                 </div>
               </TooltipContent>
@@ -321,48 +361,43 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     });
 
     const remaining = editableText.slice(lastIndex);
-    if (remaining) segments.push(<React.Fragment key={`text-end`}>{remaining}</React.Fragment>);
+    if (remaining)
+      segments.push(
+        <React.Fragment key={`text-end`}>{remaining}</React.Fragment>
+      );
 
     return segments;
-  }, [claims, editableText, activeClaim]);
+  }, [claims, editableText, activeClaim, activeTab]);
 
   return (
     <div className="w-full h-full grid grid-rows-[1fr,auto] bg-white border-t border-gray-200 mt-16">
-      {/* <div className="fixed bottom-4 right-4 p-2 bg-gray-800 text-xs text-white rounded-lg opacity-50 hover:opacity-100 transition-opacity">
-        <div>Claim Count: {claims?.length || 0}</div>
-        <div>Active: {activeClaim?.id ?? 'none'}</div>
-        <div>Expanded: {expandedClaimId ?? 'none'}</div>
-        <div>Tab: {activeTab}</div>
-        <div>Editing: {isEditing ? 'yes' : 'no'}</div>
-        <div>Extracting: {isExtracting ? 'yes' : 'no'}</div>
-        <div>Verifying: {isVerifying ? 'yes' : 'no'}</div>
-        <div>Scans: {scansLeft}/{totalScans}</div>
-        <div className="mt-2 border-t border-gray-600 pt-2">
-          <div className="font-bold mb-1">Claims:</div>
-          <pre className="whitespace-pre-wrap overflow-auto max-h-[300px]">
-            {JSON.stringify(claims, null, 2)}
-          </pre>
-        </div>
-      </div> */}
-
-
       <div className="overflow-hidden">
         {/* Mobile Tabs */}
         <div className="block lg:hidden w-full">
           <Tabs
             value={activeTab}
-            onValueChange={(value) => setActiveTab(value as 'text' | 'analysis')}
+            onValueChange={(value) =>
+              setActiveTab(value as "text" | "analysis")
+            }
             className="w-full"
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="text">Text</TabsTrigger>
               <TabsTrigger value="analysis">Analysis</TabsTrigger>
             </TabsList>
-            <TabsContent value="text" className="h-[calc(100vh-250px)] overflow-y-auto">
+            <TabsContent
+              value="text"
+              className="h-[calc(100vh-250px)] overflow-y-auto"
+            >
               <div className="p-6 pt-4">
                 <div className="flex justify-end mb-4">
                   {!isEditing && (
-                    <Button variant="outline" size="sm" onClick={handleStartEditing} className="gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleStartEditing}
+                      className="gap-2"
+                    >
                       <Pencil className="w-4 h-4" />
                       Edit
                     </Button>
@@ -381,7 +416,10 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="analysis" className="h-[calc(100vh-250px)] overflow-y-auto">
+            <TabsContent
+              value="analysis"
+              className="h-[calc(100vh-250px)] overflow-y-auto"
+            >
               <div className="p-4">
                 {activeClaim ? (
                   <SingleClaimView
@@ -414,7 +452,11 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                             claim={claim}
                             isActive={claim.id === expandedClaimId}
                             isExpanded={claim.id === expandedClaimId}
-                            onClick={() => setExpandedClaimId((prevId) => prevId === claim.id ? null : claim.id)}
+                            onClick={() =>
+                              setExpandedClaimId((prevId) =>
+                                prevId === claim.id ? null : claim.id
+                              )
+                            }
                           />
                         ))
                       )}
@@ -539,14 +581,14 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
             )}
           </Button>
           <div className="flex items-center gap-3 sm:gap-4">
-            {(isExtracting || isVerifying) ? (
+            {isExtracting || isSearching || isVerifying ? (
               <Skeleton className="h-6 w-16" />
             ) : (
               <Badge variant="secondary" className="h-6 sm:h-7 shrink-0">
-                {falseClaimsCount} {falseClaimsCount === 1 ? 'issue' : 'issues'}
+                {falseClaimsCount} {falseClaimsCount === 1 ? "issue" : "issues"}
               </Badge>
             )}
-            {(isExtracting || isVerifying) ? (
+            {isExtracting || isSearching || isVerifying ? (
               <Skeleton className="h-6 w-20" />
             ) : (
               <Badge variant="secondary" className="h-6 sm:h-7 shrink-0">
@@ -554,7 +596,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
               </Badge>
             )}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {(isExtracting || isVerifying) ? (
+              {isExtracting || isSearching || isVerifying ? (
                 <>
                   <Skeleton className="h-4 w-10" />
                   <Skeleton className="h-2 w-24" />
@@ -582,7 +624,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
         </div>
       </div>
 
-      {isEditing && activeTab === 'text' && (
+      {isEditing && activeTab === "text" && (
         <div className="lg:hidden">
           <TextActionBar
             characterCount={editableText.length}

@@ -3,6 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import {
   ExtractClaimsResponseSchema,
+  ExtractClaimsRequestSchema,
   ExtractedClaimLLMResponseSchema,
 } from "@/lib/schemas";
 
@@ -11,15 +12,11 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json();
-    const { text } = json as { text: string };
-
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return NextResponse.json({ error: 'No valid text provided' }, { status: 400 });
-    }
+    const { text } = ExtractClaimsRequestSchema.parse(json);
 
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),
-      output: 'array', // This means the result is an array of objects
+      output: 'array',
       schema: ExtractedClaimLLMResponseSchema,
       prompt: `You are an expert at extracting claims from text.
       Your task is to identify and list all claims present, true or false, in the given text. Each claim should be a single, verifiable statement.
@@ -51,11 +48,10 @@ export async function POST(req: NextRequest) {
       `
     });
 
-    // 'object' is already an array of { claim, exact_text } objects
-    const llmClaims = object;
+    const llmClaims = Array.isArray(object[0]) ? object[0] : object;
 
-    // Now find start/end indices
-    const claimsWithIndices = llmClaims.map((c: {claim: string, exact_text: string}) => {
+    // Now find start/end indices and add IDs
+    const claimsWithIndices = (llmClaims as Array<{claim: string, exact_text: string}>).map((c, index) => {
       // Use lastIndexOf to find the last occurrence in case text appears multiple times
       const start = text.lastIndexOf(c.exact_text); 
       if (start === -1) {
@@ -64,12 +60,13 @@ export async function POST(req: NextRequest) {
       }
       const end = start + c.exact_text.length;
       return {
+        id: index + 1,
         claim: c.claim,
         exact_text: c.exact_text,
         start,
         end,
       };
-    }).filter(claim => claim !== null);
+    }).filter((claim): claim is NonNullable<typeof claim> => claim !== null);
 
     const parsedClaims = ExtractClaimsResponseSchema.parse({ claims: claimsWithIndices });
     return NextResponse.json(parsedClaims);
