@@ -2,11 +2,10 @@
 
 import React, { useState, useMemo } from "react";
 import useSWR from "swr";
-
 import {
-  ExtractClaimsResponse,
-  SearchClaimsResponse,
-  VerifyClaimsResponse,
+  LLMExtractedClaimsResponse as ExtractClaimsResponse,
+  type Claim,
+  SearchAndVerifyResponse,
 } from "@/lib/schemas";
 
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +38,6 @@ import {
   CheckCheck,
 } from "lucide-react";
 
-import type { Claim } from "@/lib/schemas";
-
 const MAX_CHARACTERS = 5000;
 
 // Fetchers
@@ -57,42 +54,27 @@ async function fetchExtractClaims(
   return resp.json();
 }
 
-async function fetchSearchClaims(
+async function fetchSearchAndVerify(
   url: string,
-  claimIdsString: string,
   extractedClaims: Claim[]
-): Promise<SearchClaimsResponse> {
-  const resp = await fetch("/api/searchclaims", {
+): Promise<SearchAndVerifyResponse> {
+  const resp = await fetch("/api/searchandverify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      claims: extractedClaims.map((c) => ({ id: c.id, claim: c.claim })),
+      claims: extractedClaims.map((c) => ({
+        id: c.id,
+        exactText: c.exactText,
+        claim: c.claim,
+        start: c.start,
+        end: c.end,
+      })),
     }),
   });
-  if (!resp.ok) throw new Error(`Search failed: ${resp.statusText}`);
+  if (!resp.ok) throw new Error(`Search and verify failed: ${resp.statusText}`);
   return resp.json();
 }
 
-async function fetchVerifyClaims(
-  url: string,
-  claimIdsString: string,
-  claimsWithSources: Claim[]
-): Promise<VerifyClaimsResponse> {
-  const claimsForVerify = claimsWithSources.map((c) => ({
-    claimId: c.id,
-    claim: c.claim,
-    sources: c.sources,
-  }));
-  const resp = await fetch("/api/verifyclaims", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ claims: claimsForVerify }),
-  });
-  if (!resp.ok) throw new Error(`Verify failed: ${resp.statusText}`);
-  return resp.json();
-}
-
-// SWR Options to prevent automatic revalidation
 const swrOptions = {
   revalidateOnFocus: false,
   revalidateOnReconnect: false,
@@ -128,97 +110,55 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     swrOptions
   );
 
+  // Use start and end from extractData
   const extractedClaims: Claim[] | null = useMemo(() => {
     if (!extractData) return null;
-    return extractData.claims.map((c) => ({
-      id: c.id,
-      exactText: c.exact_text,
+    return extractData.claims.map((c, index) => ({
+      id: index + 1,  
+      exactText: c.exactText,
       claim: c.claim,
-      start: c.start,
-      end: c.end,
-      status: "not yet verified" as const,
+      start: c.start,    // use start from extraction
+      end: c.end,        // use end from extraction
+      status: "not yet verified",
       confidence: null,
       explanation: null,
       sources: [],
     }));
   }, [extractData]);
 
-  // Create a stable key for search
-  const extractedClaimsKey =
+  // 2. Search and Verify in one step
+  const {
+    data: searchAndVerifyData,
+    error: searchAndVerifyError,
+    isLoading: isSearchAndVerifyLoading,
+  } = useSWR(
     extractedClaims && extractedClaims.length > 0
-      ? extractedClaims.map((c) => c.id).join(",")
-      : null;
-
-  // 2. Search Claims
-  const {
-    data: searchData,
-    error: searchError,
-    isLoading: isSearching,
-  } = useSWR(
-    extractedClaimsKey ? ["/api/searchclaims", extractedClaimsKey] : null,
-    ([url, ids]) => fetchSearchClaims(url, ids, extractedClaims || []),
-    swrOptions
-  );
-
-  const claimsWithSources: Claim[] | null = useMemo(() => {
-    if (!extractedClaims) return null;
-    if (!searchData) return extractedClaims;
-    return extractedClaims.map((c) => {
-      const found = searchData.results.find((r) => r.claimId === c.id);
-      return found ? { ...c, sources: found.sources } : c;
-    });
-  }, [extractedClaims, searchData]);
-
-  // Create a stable key for verify
-  const allUnverified =
-    claimsWithSources?.every((c) => c.status === "not yet verified") ?? false;
-  const verifyKey =
-    claimsWithSources && claimsWithSources.length > 0 && allUnverified
-      ? claimsWithSources.map((c) => c.id).join(",")
-      : null;
-
-  // 3. Verify Claims
-  const {
-    data: verifyData,
-    error: verifyError,
-    isLoading: isVerifying,
-  } = useSWR(
-    verifyKey ? ["/api/verifyclaims", verifyKey] : null,
-    ([url, ids]) => fetchVerifyClaims(url, ids, claimsWithSources || []),
+      ? ["/api/searchandverify", extractedClaims]
+      : null,
+    ([url, claims]) => fetchSearchAndVerify(url, claims),
     swrOptions
   );
 
   const finalClaims: Claim[] | null = useMemo(() => {
-    if (!claimsWithSources) return null;
-    if (!verifyData) return claimsWithSources;
-    return claimsWithSources.map((c) => {
-      const v = verifyData.verifications.find((x) => x.claimId === c.id);
-      return v
-        ? {
-            ...c,
-            status: v.status,
-            confidence: v.confidence,
-            explanation: v.explanation,
-            suggestedFix: v.suggestedFix,
-          }
-        : c;
-    });
-  }, [claimsWithSources, verifyData]);
+    // If searchAndVerifyData is present, use its claims as final
+    if (searchAndVerifyData) return searchAndVerifyData.claims;
+    // Otherwise fallback to extractedClaims if available
+    if (extractedClaims) return extractedClaims;
+    return null;
+  }, [searchAndVerifyData, extractedClaims]);
 
   const claims = finalClaims;
   const error =
-    extractError?.message ||
-    searchError?.message ||
-    verifyError?.message ||
-    null;
+    extractError?.message || searchAndVerifyError?.message || null;
 
   const falseClaimsCount = (claims ?? []).filter(
     (c) => c.status === "contradicted"
   ).length;
-  const trueClaimsCount = (claims ?? []).filter(
-    (c) => c.status === "supported"
-  ).length;
+  const trueClaimsCount = (claims ?? []).filter((c) => c.status === "supported")
+    .length;
   const claimsCount = claims ? claims.length : null;
+
+  const isLoadingOverall = isExtracting || isSearchAndVerifyLoading;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(editableText);
@@ -249,8 +189,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     setActiveTab("text");
   };
 
-  const showClaimsSkeleton =
-    (isExtracting || isSearching || isVerifying) && !claims;
+  const showClaimsSkeleton = isLoadingOverall && !claims;
 
   const highlightClaims = useMemo(() => {
     if (!claims) return <>{editableText}</>;
@@ -309,7 +248,6 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                   data-claim-id={claim.id}
                   className={`inline transition-colors duration-200 ease-in-out ${highlightClasses} ${activeRing} rounded-sm px-0.5 py-0.5 cursor-pointer`}
                   onClick={() => {
-                    // If on mobile (activeTab === 'text'), switch to 'analysis' to show the SingleClaimView
                     if (activeTab === "text") setActiveTab("analysis");
                     setActiveClaim(claim);
                   }}
@@ -376,9 +314,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
         <div className="block lg:hidden w-full">
           <Tabs
             value={activeTab}
-            onValueChange={(value) =>
-              setActiveTab(value as "text" | "analysis")
-            }
+            onValueChange={(value) => setActiveTab(value as "text" | "analysis")}
             className="w-full"
           >
             <TabsList className="grid w-full grid-cols-2">
@@ -422,10 +358,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
             >
               <div className="p-4">
                 {activeClaim ? (
-                  <SingleClaimView
-                    claim={activeClaim}
-                    onBack={handleBackToText}
-                  />
+                  <SingleClaimView claim={activeClaim} onBack={handleBackToText} />
                 ) : (
                   <>
                     <ClaimsScale claimsCount={claimsCount} />
@@ -512,10 +445,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
             <ResizablePanel defaultSize={40} minSize={30}>
               <div className="p-4 h-full overflow-y-auto">
                 {activeClaim ? (
-                  <SingleClaimView
-                    claim={activeClaim}
-                    onBack={handleBackToText}
-                  />
+                  <SingleClaimView claim={activeClaim} onBack={handleBackToText} />
                 ) : (
                   <>
                     <ClaimsScale claimsCount={claimsCount} />
@@ -581,14 +511,14 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
             )}
           </Button>
           <div className="flex items-center gap-3 sm:gap-4">
-            {isExtracting || isSearching || isVerifying ? (
+            {isLoadingOverall ? (
               <Skeleton className="h-6 w-16" />
             ) : (
               <Badge variant="secondary" className="h-6 sm:h-7 shrink-0">
                 {falseClaimsCount} {falseClaimsCount === 1 ? "issue" : "issues"}
               </Badge>
             )}
-            {isExtracting || isSearching || isVerifying ? (
+            {isLoadingOverall ? (
               <Skeleton className="h-6 w-20" />
             ) : (
               <Badge variant="secondary" className="h-6 sm:h-7 shrink-0">
@@ -596,7 +526,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
               </Badge>
             )}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {isExtracting || isSearching || isVerifying ? (
+              {isLoadingOverall ? (
                 <>
                   <Skeleton className="h-4 w-10" />
                   <Skeleton className="h-2 w-24" />

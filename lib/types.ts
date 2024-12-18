@@ -3,17 +3,15 @@ import { z } from 'zod';
 import * as Schemas from '@/lib/schemas';
 
 // Export Types
-export type Source = z.infer<typeof Schemas.SourceSchema>;
-export type Claim = Schemas.Claim; // Use interface defined in schemas.ts
-export type ExtractClaimsRequest = z.infer<typeof Schemas.ExtractClaimsRequestSchema>;
-export type ExtractClaimsResponse = z.infer<typeof Schemas.ExtractClaimsResponseSchema>;
-export type ExtractedClaimLLMResponse = z.infer<typeof Schemas.ExtractedClaimLLMResponseSchema>;
+export type ExaSource = z.infer<typeof Schemas.ExaSourceSchema>;
+export type Claim = Schemas.Claim;
+export type LLMExtractedClaim = z.infer<typeof Schemas.LLMExtractedClaimSchema>;
+export type LLMExtractedClaimsResponse = z.infer<typeof Schemas.LLMExtractedClaimsResponseSchema>;
 
-export type SearchClaimsRequest = z.infer<typeof Schemas.SearchClaimsRequestSchema>;
-export type SearchClaimsResponse = z.infer<typeof Schemas.SearchClaimsResponseSchema>;
+export type SearchAndVerifyRequest = z.infer<typeof Schemas.SearchAndVerifyRequestSchema>;
+export type SearchAndVerifyResponse = z.infer<typeof Schemas.SearchAndVerifyResponseSchema>;
 
-export type VerifyClaimsRequest = z.infer<typeof Schemas.VerifyClaimsRequestSchema>;
-export type VerifyClaimsResponse = z.infer<typeof Schemas.VerifyClaimsResponseSchema>;
-export type VerificationResult = z.infer<typeof Schemas.VerificationResultSchema>;
-
+export type LLMVerificationResult = z.infer<typeof Schemas.LLMVerificationResultSchema>;
 export type ClaimStatus = z.infer<typeof Schemas.ClaimStatusSchema>;
+export type LLMCitedSource = z.infer<typeof Schemas.LLMCitedSourceSchema>;
+export type MergedSource = z.infer<typeof Schemas.MergedSourceSchema>;

@@ -1,36 +1,38 @@
 import React from 'react'
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ExternalLink } from 'lucide-react'
-import { type Source } from '@/lib/types'
+import { type MergedSource } from '@/lib/schemas'
 
 interface SourceDetailProps {
-  source: Source
+  source: MergedSource
 }
 
 export function SourceDetail({ source }: SourceDetailProps) {
+  const supportsLabel = source.supports ? 'Supports' : 'Does not support';
+  const supportsColor = source.supports
+    ? 'text-green-700 bg-green-100'
+    : 'text-red-700 bg-red-100';
+
   return (
-    <Card className="p-2 space-y-2 bg-gray-50 border border-gray-200">
-      <div className="flex items-center justify-between">
-        <Badge variant="secondary" className="bg-gray-100 text-gray-700 px-2 py-0.5 text-xs">
-          Relevance: {source.relevance}%
-        </Badge>
-        {source.supports && (
-          <Badge className="bg-green-100 text-green-700 px-2 py-0.5 text-xs">
-            Supports claim
-          </Badge>
-        )}
+    <div>
+      <div className="flex items-baseline space-x-2">
+        <span className="text-gray-600 text-xs font-medium">Source #{source.sourceNumber}</span>
+        <span className="text-xs text-gray-500">Pertinence: {source.pertinence}%</span>
+        <span className="text-xs text-gray-500">Agreement: {source.agreementPercentage}%</span>
       </div>
-      <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline text-blue-600 flex items-center">
-        {source.title}
-        <ExternalLink className="h-3 w-3 ml-1" />
+      <a
+        href={source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block text-sm font-medium text-blue-700 hover:underline mt-1"
+      >
+        {source.title || 'Untitled Source'}
       </a>
-      {source.quote && (
-        <blockquote className="border-l-2 pl-2 italic text-gray-600 text-xs">
-          "{source.quote}"
-        </blockquote>
-      )}
-    </Card>
-  )
+      <p className="mt-1 text-sm text-gray-600">
+        "{source.sourceText}"
+      </p>
+      <span className={`inline-block mt-1 text-xs font-medium rounded px-1 ${supportsColor}`}>
+        {supportsLabel}
+      </span>
+    </div>
+  );
 }
 
