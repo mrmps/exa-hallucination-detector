@@ -4,17 +4,16 @@ import * as Schemas from '@/lib/schemas';
 
 // Export Types
 export type Source = z.infer<typeof Schemas.SourceSchema>;
-export type Claim = z.infer<typeof Schemas.ClaimSchema>;
-export type FactCheckerProps = z.infer<typeof Schemas.FactCheckerPropsSchema>;
-
-export type ExtractedClaim = z.infer<typeof Schemas.ExtractedClaimSchema>;
-export type ExtractedClaimLLMResponse = z.infer<typeof Schemas.ExtractedClaimLLMResponseSchema>;
+export type Claim = Schemas.Claim; // Use interface defined in schemas.ts
+export type ExtractClaimsRequest = z.infer<typeof Schemas.ExtractClaimsRequestSchema>;
 export type ExtractClaimsResponse = z.infer<typeof Schemas.ExtractClaimsResponseSchema>;
+export type ExtractedClaimLLMResponse = z.infer<typeof Schemas.ExtractedClaimLLMResponseSchema>;
 
-export type ExaSearchRequest = z.infer<typeof Schemas.ExaSearchRequestSchema>;
-export type ExaResult = z.infer<typeof Schemas.ExaResultSchema>;
-export type ExaSearchResponse = z.infer<typeof Schemas.ExaSearchResponseSchema>;
+export type SearchClaimsRequest = z.infer<typeof Schemas.SearchClaimsRequestSchema>;
+export type SearchClaimsResponse = z.infer<typeof Schemas.SearchClaimsResponseSchema>;
 
-export type VerifyClaimsLLMResponse = z.infer<typeof Schemas.VerifyClaimsLLMResponseSchema>;
+export type VerifyClaimsRequest = z.infer<typeof Schemas.VerifyClaimsRequestSchema>;
+export type VerifyClaimsResponse = z.infer<typeof Schemas.VerifyClaimsResponseSchema>;
+export type VerificationResult = z.infer<typeof Schemas.VerificationResultSchema>;
 
 export type ClaimStatus = z.infer<typeof Schemas.ClaimStatusSchema>;
