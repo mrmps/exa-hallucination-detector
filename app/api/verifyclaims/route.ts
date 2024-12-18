@@ -1,6 +1,6 @@
 // app/api/verifyclaims/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { openai } from "@ai-sdk/openai"
+import { openai } from "@ai-sdk/openai";
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
@@ -8,50 +8,51 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { claim, original_text, exasources } = await req.json();
+    const { claim, sentenceIds, sources } = await req.json();
 
-    if (!claim || !original_text || !exasources) {
+    if (!claim || !sources) {
       return NextResponse.json({ error: 'Claim and sources are required' }, { status: 400 });
     }
 
-    const factCheckSchema = z.object({
-      claim: z.string(),
-      assessment: z.enum(["True", "False", "Insufficient Information"]),
-      summary: z.string(),
-      fixed_original_text: z.string(),
-      confidence_score: z.number().min(0).max(100)
+    const verifiedClaimSchema = z.object({
+      id: z.number(),
+      text: z.string(),
+      sentenceIds: z.array(z.number()),
+      status: z.enum(['supported', 'contradicted', 'unverified']),
+      confidence: z.number().min(0).max(100),
+      explanation: z.string(),
+      suggestedFix: z.string().optional(),
+      sources: z.array(z.object({
+        url: z.string(),
+        title: z.string(),
+        quote: z.string(),
+        relevance: z.number().min(0).max(100),
+        supports: z.boolean()
+      }))
     });
 
     const { object } = await generateObject({
-      model: openai("gpt-4o-mini"),
-      schema: factCheckSchema,
-      output: 'object',
-      prompt: `You are an expert fact-checker. Given a claim and a set of sources, determine whether the claim is true or false based on the text from sources (or if there is insufficient information).
-    
-      For your analysis, consider all the sources collectively.
+      model: openai('gpt-4-turbo'),
+      schema: verifiedClaimSchema,
+      prompt: `You are an expert fact-checker. Analyze this claim and the provided sources to determine if the claim is supported, contradicted, or unverified.
 
-      Here are the sources: ${exasources}
+      Claim: ${claim}
+      Sources: ${JSON.stringify(sources, null, 2)}
 
-      Here is the Original part of the text: ${original_text}
-
-      Here is the claim: ${claim}
-
-      Provide your answer as a JSON object with the following structure:
-
-      claim: "...",
-      assessment: "True" or "False" or "Insufficient Information",
-      summary: "Why is this claim correct and if it isn't correct, then what's correct. In a single line.",
-      fixed_original_text: "If the assessment is False then correct the original text (keeping everything as it is and just fix the fact in the part of the text)",
-      confidence_score: a percentage number between 0 and 100 (100 means fully confident that the decision you have made is correct, 0 means you are completely unsure),
-      
-      `
+      Generate a detailed verification response that includes:
+      - Whether the claim is supported, contradicted, or unverified based on the sources
+      - A confidence score (0-100) for your assessment
+      - A clear explanation of your reasoning
+      - If contradicted, suggest a correction
+      - Include relevant quotes and sources that support your assessment`,
+      output: 'object'
     });
 
     console.log('LLM response:', object);
     
-    return NextResponse.json({ claims: object });
+    return NextResponse.json({ claim: object });
   } catch (error) {
     console.error('Verify claims API error:', error);
-    return NextResponse.json({ error: `Failed to extract claims | ${error}` }, { status: 500 });
+    return NextResponse.json({ error: `Failed to verify claim | ${error}` }, { status: 500 });
   }
 }

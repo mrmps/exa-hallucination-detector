@@ -1,8 +1,33 @@
+import { Skeleton } from "@/components/ui/skeleton"
+
 interface ClaimsScaleProps {
-  claimsCount: number
+  claimsCount: number | null
 }
 
 export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
+  if (claimsCount === null) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-64" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <div className="flex items-stretch h-2 rounded-full overflow-hidden">
+          <div className="bg-gray-200 flex-1" />
+          <div className="bg-gray-200 flex-1" />
+          <div className="bg-gray-200 flex-1" />
+          <div className="bg-gray-200 flex-1" />
+          <div className="bg-gray-200 flex-1" />
+        </div>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-32" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">

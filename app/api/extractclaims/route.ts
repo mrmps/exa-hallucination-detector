@@ -1,23 +1,32 @@
-// app/api/extractclaims/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@ai-sdk/openai";
-import { generateText } from 'ai';
+import { generateObject } from "ai";
+import {
+  ExtractClaimsRequestSchema,
+  ExtractClaimsResponseSchema,
+} from "@/lib/schemas";
 
 // This function can run for a maximum of 60 seconds
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { content } = await req.json();
-    if (!content) {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 });
-    }
+    const json = await req.json();
+    const { sentences } = ExtractClaimsRequestSchema.parse(json);
 
+    // Create a string representation of sentences with IDs
+    const sentencesWithIds = sentences
+      .map(
+        (sentence: string, index: number) =>
+          `${index + 1}. "${sentence.trim()}"`
+      )
+      .join("\n");
     // Run the prompt to extract claims along with original text parts
-    const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
-      prompt: 
-      `You are an expert at extracting claims from text.
+    const { object } = await generateObject({
+      model: openai("gpt-4o"),
+      output: 'array',
+      schema: ExtractClaimsResponseSchema.shape.claims.element,
+      prompt: `You are an expert at extracting claims from text.
       Your task is to identify and list all claims present, true or false, in the given text. Each claim should be a single, verifiable statement.
       If the input content is very lengthy, then pick the major claims.
 
@@ -28,7 +37,7 @@ export async function POST(req: NextRequest) {
       
       Do not include any additional text or commentary.
 
-      Here is the content: ${content}
+      Here is the content: ${sentencesWithIds}
 
       Return the output strictly as a JSON array of objects following this schema:
       [
@@ -43,8 +52,20 @@ export async function POST(req: NextRequest) {
       `,
     });
 
-    return NextResponse.json({ claims: JSON.parse(text) });
+    const parsedClaims = ExtractClaimsResponseSchema.parse({
+      claims: object,
+    });
+
+    return NextResponse.json(parsedClaims);
   } catch (error) {
-    return NextResponse.json({ error: `Failed to extract claims | ${error}` }, { status: 500 });
+    console.error("Error in extractclaims API:", error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error occurred while extracting claims";
+    return NextResponse.json(
+      { error: `Failed to extract claims | ${errorMessage}` },
+      { status: 500 }
+    );
   }
 }

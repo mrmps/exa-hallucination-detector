@@ -149,100 +149,100 @@ export default function FactCheckTool() {
 //     }
 //   }, [isGenerating]);
 
-//   const extractClaims = async (content: string) => {
-//     const response = await fetch('/api/extractclaims', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ content }),
-//     });
+  // const extractClaims = async (content: string) => {
+  //   const response = await fetch('/api/extractclaims', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ content }),
+  //   });
 
-//     if (!response.ok) {
-//       const errorData = await response.json();
-//       throw new Error(errorData.error || 'Failed to extract claims.');
-//     }
+  //   if (!response.ok) {
+  //     const errorData = await response.json();
+  //     throw new Error(errorData.error || 'Failed to extract claims.');
+  //   }
 
-//     const data = await response.json();
-//     return Array.isArray(data.claims) ? data.claims : JSON.parse(data.claims);
-//   };
+  //   const data = await response.json();
+  //   return Array.isArray(data.claims) ? data.claims : JSON.parse(data.claims);
+  // };
 
-//   const exaSearch = async (claim: string) => {
-//     const response = await fetch('/api/exasearch', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ claim }),
-//     });
+  // const exaSearch = async (claim: string) => {
+  //   const response = await fetch('/api/exasearch', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ claim }),
+  //   });
 
-//     if (!response.ok) {
-//       const errorData = await response.json();
-//       throw new Error(errorData.error || 'Failed to fetch verification for claim.');
-//     }
+  //   if (!response.ok) {
+  //     const errorData = await response.json();
+  //     throw new Error(errorData.error || 'Failed to fetch verification for claim.');
+  //   }
 
-//     return await response.json();
-//   };
+  //   return await response.json();
+  // };
 
-//   const verifyClaim = async (claim: string, original_text: string, exasources: any) => {
-//     const response = await fetch('/api/verifyclaims', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ claim, original_text, exasources }),
-//     });
+  // const verifyClaim = async (claim: string, original_text: string, exasources: any) => {
+  //   const response = await fetch('/api/verifyclaims', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ claim, original_text, exasources }),
+  //   });
 
-//     if (!response.ok) {
-//       const errorData = await response.json();
-//       throw new Error(errorData.error || 'Failed to verify claim.');
-//     }
+  //   if (!response.ok) {
+  //     const errorData = await response.json();
+  //     throw new Error(errorData.error || 'Failed to verify claim.');
+  //   }
 
-//     const data = await response.json();
-//     return data.claims as FactCheckResponse;
-//   };
+  //   const data = await response.json();
+  //   return data.claims as FactCheckResponse;
+  // };
 
-//   const factCheck = async (e: FormEvent) => {
-//     e.preventDefault();
+  // const factCheck = async (e: FormEvent) => {
+  //   e.preventDefault();
 
-//     if (!articleContent) {
-//       setError("Please enter some content or try with sample blog.");
-//       return;
-//     }
+  //   if (!articleContent) {
+  //     setError("Please enter some content or try with sample blog.");
+  //     return;
+  //   }
 
-//     if (articleContent.length < 50) {
-//       setError("Too short. Please enter at least 50 characters.");
-//       return;
-//     }
+  //   if (articleContent.length < 50) {
+  //     setError("Too short. Please enter at least 50 characters.");
+  //     return;
+  //   }
 
-//     setIsGenerating(true);
-//     setError(null);
-//     setFactCheckResults([]);
+  //   setIsGenerating(true);
+  //   setError(null);
+  //   setFactCheckResults([]);
 
-//     try {
-//       const claims = await extractClaims(articleContent);
-//       const finalResults = await Promise.all(
-//         claims.map(async ({ claim, original_text }: Claim) => {
-//           try {
-//             const exaSources = await exaSearch(claim);
+  //   try {
+  //     const claims = await extractClaims(articleContent);
+  //     const finalResults = await Promise.all(
+  //       claims.map(async ({ claim, original_text }: Claim) => {
+  //         try {
+  //           const exaSources = await exaSearch(claim);
 
-//             if (!exaSources?.results?.length) {
-//               return null;
-//             }
+  //           if (!exaSources?.results?.length) {
+  //             return null;
+  //           }
 
-//             const sourceUrls = exaSources.results.map((result: { url: any; }) => result.url);
-//             const verifiedClaim = await verifyClaim(claim, original_text, exaSources.results);
+  //           const sourceUrls = exaSources.results.map((result: { url: any; }) => result.url);
+  //           const verifiedClaim = await verifyClaim(claim, original_text, exaSources.results);
 
-//             return { ...verifiedClaim, original_text, url_sources: sourceUrls };
-//           } catch (error) {
-//             console.error(`Failed to verify claim: ${claim}`, error);
-//             return null;
-//           }
-//         })
-//       );
+  //           return { ...verifiedClaim, original_text, url_sources: sourceUrls };
+  //         } catch (error) {
+  //           console.error(`Failed to verify claim: ${claim}`, error);
+  //           return null;
+  //         }
+  //       })
+  //     );
 
-//       setFactCheckResults(finalResults.filter(result => result !== null));
-//     } catch (error) {
-//       setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
-//       setFactCheckResults([]);
-//     } finally {
-//       setIsGenerating(false);
-//     }
-//   };
+  //     setFactCheckResults(finalResults.filter(result => result !== null));
+  //   } catch (error) {
+  //     setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
+  //     setFactCheckResults([]);
+  //   } finally {
+  //     setIsGenerating(false);
+  //   }
+  // };
 
 //   const sampleBlog = `The Eiffel Tower, a remarkable iron lattice structure standing proudly in Paris, was originally built as a giant sundial in 1822, intended to cast shadows across the city to mark the hours. Designed by the renowned architect Gustave Eiffel, the tower stands 324 meters tall and once housed the city's first observatory.\n\nWhile it's famously known for hosting over 7 million visitors annually, it was initially disliked by Parisians. Interestingly, the Eiffel Tower was used as to guide ships along the Seine during cloudy nights.`;
 

@@ -1,15 +1,14 @@
 // app/api/exasearch/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import Exa from "exa-js";
+import { ExaSearchRequestSchema, ExaSearchResponseSchema } from '@/lib/schemas';
 
 const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
   try {
-    const { claim } = await req.json();
-    if (!claim) {
-      return NextResponse.json({ error: 'Claim is required' }, { status: 400 });
-    }
+    const json = await req.json();
+    const { claim } = ExaSearchRequestSchema.parse(json);
 
     // Use Exa to search for content related to the claim
     const result = await exa.searchAndContents(
@@ -22,14 +21,24 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Extract only url and text from each result
+    // Process and validate results
     const simplifiedResults = result.results.map((item: any) => ({
       text: item.text,
-      url: item.url
+      url: item.url,
+      // Include other properties if available
+      title: item.title,
+      quote: item.quote,
+      relevance: item.relevance,
+      supports: item.supports,
     }));
 
-    return NextResponse.json({ results: simplifiedResults });
+    const parsedResults = ExaSearchResponseSchema.parse({ results: simplifiedResults });
+
+    return NextResponse.json(parsedResults);
+    
   } catch (error) {
-    return NextResponse.json({ error: `Failed to perform search | ${error}` }, { status: 500 });
+    console.error('Error in exasearch API:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred while performing search';
+    return NextResponse.json({ error: `Failed to perform search | ${errorMessage}` }, { status: 500 });
   }
 }
