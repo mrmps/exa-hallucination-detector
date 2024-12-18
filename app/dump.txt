@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { type ClaimStatus, type Claim } from '@/lib/types';
 import { ExtractClaimsResponseSchema, ExaSearchResponseSchema, VerifyClaimsLLMResponseSchema } from '@/lib/schemas';
-
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CheckCircle2, AlertTriangle, HelpCircle, Pencil, Copy, CheckCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -27,11 +27,45 @@ interface FactCheckerProps {
   text: string;
 }
 
+async function extractClaimsFn(text: string): Promise<ExtractClaimsResponse> {
+  const res = await fetch('/api/extractclaims', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`Failed to extract claims: ${res.statusText}`);
+  const data = await res.json();
+  return ExtractClaimsResponseSchema.parse(data);
+}
+
+async function exaSearchFn(claim: string): Promise<ExaSearchResponse> {
+  const res = await fetch('/api/exasearch', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ claim }),
+  });
+  if (!res.ok) throw new Error(`ExaSearch failed: ${res.statusText}`);
+  const data = await res.json();
+  return ExaSearchResponseSchema.parse(data);
+}
+
+async function verifyClaimFn(claimText: string, sources: ExaSearchResponse['results']): Promise<VerifyClaimsLLMResponse> {
+  const res = await fetch('/api/verifyclaims', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      claim: claimText,
+      sources
+    }),
+  });
+  if (!res.ok) throw new Error(`Claim verification failed: ${res.statusText}`);
+  const data = await res.json();
+  return VerifyClaimsLLMResponseSchema.parse(data);
+}
+
 export default function FactChecker({ submissionId, text }: FactCheckerProps) {
   const [claims, setClaims] = useState<Claim[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isExtracting, setIsExtracting] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
 
   const [scansLeft, setScansLeft] = useState(5);
   const [totalScans, setTotalScans] = useState(10);
@@ -43,151 +77,105 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
   const [editableText, setEditableText] = useState(text);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    const extractClaims = async () => {
-      try {
-        setIsExtracting(true);
-        setIsVerifying(false);
-        setClaims(null);
-        setError(null);
+  // Extract claims
+  const {
+    data: extractedData,
+    isLoading: isExtracting,
+    isError: extractError,
+    refetch: refetchExtraction,
+  } = useQuery({
+    queryKey: ['extractClaims', submissionId, editableText],
+    queryFn: () => extractClaimsFn(editableText),
+    enabled: !isEditing && editableText.trim().length > 0,
+    select: (data) => {
+      // Set initial claims with 'not yet verified' status
+      const initialClaims: Claim[] = data.claims.map((extractedClaim: {start: number, end: number, claim: string}, index: number) => {
+        const { start, end, claim } = extractedClaim;
+        const exactText = editableText.slice(start, end);
 
-        const extractResponse = await fetch('/api/extractclaims', {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: editableText }),
-        });
-        if (!extractResponse.ok) {
-          throw new Error(`Failed to extract claims: ${extractResponse.statusText}`);
-        }
+        return {
+          id: index,
+          exactText,
+          claim,
+          start,
+          end,
+          status: 'not yet verified', // temporary status
+          confidence: null,
+          explanation: null,
+          sources: []
+        };
+      });
+      setClaims(initialClaims);
+      // Trigger verification
+      verifyClaimsMutation.mutate(initialClaims);
+      return initialClaims;
+    }
+  });
 
-        const extractedData: ExtractClaimsResponse = await extractResponse.json();
-        const parsedExtractedData = ExtractClaimsResponseSchema.parse(extractedData);
-        const extractedClaims = parsedExtractedData.claims;
 
-        const initialClaims: Claim[] = extractedClaims.map((extractedClaim, index) => {
-          const { start, end, claim } = extractedClaim;
-          const exactText = editableText.slice(start, end);
-
-          return {
-            id: index,
-            exactText,
-            claim,
-            start,
-            end,
-            status: 'not yet verified',
-            confidence: null,
-            explanation: null,
-            sources: []
-          };
-        });
-
-        setClaims(initialClaims);
-        setIsExtracting(false);
-
-        // Start verification in background
-        verifyClaims(initialClaims);
-      } catch (err) {
-        console.error("Error extracting claims:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
-        setIsExtracting(false);
-      }
-    };
-    extractClaims();
-  }, [submissionId, editableText]);
-
-  const verifyClaims = async (initialClaims: Claim[]) => {
-    try {
-      setIsVerifying(true);
-
-      // Process claims in parallel but with rate limiting
-      const verifyClaimWithRateLimit = async (claim: Claim, index: number) => {
+  const verifyClaimsMutation = useMutation({
+    mutationFn: async (initialClaims: Claim[]) => {
+      for (let i = 0; i < initialClaims.length; i++) {
+        const c = initialClaims[i];
         try {
-          // Stagger initial requests
-          await new Promise(resolve => setTimeout(resolve, index * 250));
+          // Delay requests slightly to avoid spamming
+          await new Promise((r) => setTimeout(r, i * 250));
+          const exaData = await exaSearchFn(c.claim);
 
-          const exaResponse = await fetch('/api/exasearch', {
-            method: "POST", 
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ claim: claim.claim }),
-          });
-          if (!exaResponse.ok) {
-            throw new Error(`ExaSearch failed: ${exaResponse.statusText}`);
-          }
-
-          const exaData: ExaSearchResponse = await exaResponse.json();
-          const { results: exaResults } = ExaSearchResponseSchema.parse(exaData);
-
-          if (exaResults.length === 0) {
-            return {
-              ...claim,
+          if (exaData.results.length === 0) {
+            // no sources found, insufficient info
+            const updatedClaim = {
+              ...c,
               status: 'insufficient information' as ClaimStatus,
               explanation: 'No relevant sources were found to verify this claim.'
             };
+            setClaims(prev => prev?.map(cc => cc.id === c.id ? updatedClaim : cc) ?? [updatedClaim]);
+            continue;
           }
 
-          const verifyResponse = await fetch('/api/verifyclaims', {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              claim: claim.exactText,
-              sources: exaResults,
-            }),
-          });
-          if (!verifyResponse.ok) {
-            throw new Error(`Claim verification failed: ${verifyResponse.statusText}`);
-          }
+          const verifiedData = await verifyClaimFn(c.exactText, exaData.results);
+          const finalStatus: ClaimStatus = verifiedData.status === 'supported'
+            ? 'supported'
+            : verifiedData.status === 'contradicted'
+            ? 'contradicted'
+            : verifiedData.status === 'debated'
+            ? 'debated'
+            : 'insufficient information';
 
-          const verifiedData: VerifyClaimsLLMResponse = await verifyResponse.json();
-          const verifiedClaimData = VerifyClaimsLLMResponseSchema.parse(verifiedData);
-
-          return {
-            ...claim,
-            status: verifiedClaimData.status,
-            confidence: verifiedClaimData.confidence,
-            explanation: verifiedClaimData.explanation,
-            sources: verifiedClaimData.sources.map(s => ({
+          const mergedClaim: Claim = {
+            ...c,
+            status: finalStatus,
+            confidence: verifiedData.confidence,
+            explanation: verifiedData.explanation,
+            sources: verifiedData.sources.map(s => ({
               url: s.url,
               title: s.title,
               quote: s.quote,
               relevance: s.relevance,
               supports: s.supports
             })),
-            suggestedFix: verifiedClaimData.suggestedFix
+            suggestedFix: verifiedData.suggestedFix
           };
+          setClaims(prev => prev?.map(cc => cc.id === c.id ? mergedClaim : cc) ?? [mergedClaim]);
 
         } catch (err) {
-          console.error(`Error verifying claim: ${claim.claim}`, err);
-          return {
-            ...claim,
+          console.error(`Error verifying claim: ${c.claim}`, err);
+          const fallbackClaim = {
+            ...c,
             status: 'insufficient information' as ClaimStatus,
             explanation: 'Verification failed due to technical issues. Please try again later.'
           };
+          setClaims(prev => prev?.map(cc => cc.id === c.id ? fallbackClaim : cc) ?? [fallbackClaim]);
         }
-      };
-
-      // Create verification promises for all claims
-      const verificationPromises = initialClaims.map((claim, index) => 
-        verifyClaimWithRateLimit(claim, index)
-      );
-
-      // Update claims as each verification completes
-      for (const verificationPromise of verificationPromises) {
-        const verifiedClaim = await verificationPromise;
-        setClaims(prevClaims => {
-          if (!prevClaims) return [verifiedClaim];
-          return prevClaims.map(c => 
-            c.id === verifiedClaim.id ? verifiedClaim : c
-          );
-        });
       }
-
-    } catch (err) {
+    },
+    onError: (err: any) => {
       console.error("Error verifying claims:", err);
       setError(err instanceof Error ? err.message : "An error occurred during verification");
-    } finally {
-      setIsVerifying(false);
     }
-  };
+  });
+
+  const isVerifying = verifyClaimsMutation.isPending;
 
   const claimsNeedingFix = useMemo(() => {
     return (claims ?? []).filter((claim) => claim.status === 'contradicted');
@@ -224,7 +212,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     setActiveTab('text');
   };
 
-  const showClaimsSkeleton = isExtracting || (!claims && isVerifying);
+  const showClaimsSkeleton = (isExtracting || (!claims && isVerifying));
 
   const highlightClaims = useMemo(() => {
     if (!claims) return <>{editableText}</>;
@@ -328,24 +316,6 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
 
   return (
     <div className="w-full h-full grid grid-rows-[1fr,auto] bg-white border-t border-gray-200 mt-16">
-      {/* <div className="fixed bottom-4 right-4 p-2 bg-gray-800 text-xs text-white rounded-lg opacity-50 hover:opacity-100 transition-opacity">
-        <div>Claim Count: {claims?.length || 0}</div>
-        <div>Active: {activeClaim?.id ?? 'none'}</div>
-        <div>Expanded: {expandedClaimId ?? 'none'}</div>
-        <div>Tab: {activeTab}</div>
-        <div>Editing: {isEditing ? 'yes' : 'no'}</div>
-        <div>Extracting: {isExtracting ? 'yes' : 'no'}</div>
-        <div>Verifying: {isVerifying ? 'yes' : 'no'}</div>
-        <div>Scans: {scansLeft}/{totalScans}</div>
-        <div className="mt-2 border-t border-gray-600 pt-2">
-          <div className="font-bold mb-1">Claims:</div>
-          <pre className="whitespace-pre-wrap overflow-auto max-h-[300px]">
-            {JSON.stringify(claims, null, 2)}
-          </pre>
-        </div>
-      </div> */}
-
-
       <div className="overflow-hidden">
         {/* Mobile Tabs */}
         <div className="block lg:hidden w-full">
@@ -426,7 +396,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
           </Tabs>
         </div>
 
-        {/* Desktop Split View */}
+        {/* Desktop Layout with Resizable Panels */}
         <div className="hidden lg:flex w-full h-full">
           <ResizablePanelGroup direction="horizontal" className="w-full">
             <ResizablePanel defaultSize={60} minSize={30}>
@@ -517,9 +487,10 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
         </div>
       </div>
 
-      {/* Bottom Bar */}
+      {/* Status Bar */}
       <div className="border-t border-gray-100 bg-white">
         <div className="p-2 sm:p-3 flex flex-row items-center justify-between">
+          {/* Copy Button */}
           <Button
             variant="outline"
             size="sm"
@@ -538,6 +509,8 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
               </span>
             )}
           </Button>
+
+          {/* Stats and Progress */}
           <div className="flex items-center gap-3 sm:gap-4">
             {(isExtracting || isVerifying) ? (
               <Skeleton className="h-6 w-16" />
@@ -582,6 +555,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
         </div>
       </div>
 
+      {/* Text Action Bar (mobile only) */}
       {isEditing && activeTab === 'text' && (
         <div className="lg:hidden">
           <TextActionBar

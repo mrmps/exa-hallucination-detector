@@ -12,8 +12,3 @@ export const getStatusColor = (status: string) => {
       return 'bg-gray-100 text-gray-800 border-gray-200'
   }
 }
-
-export const getClaimForSentence = (sentenceId: number, claims: Claim[]): Claim | null => {
-  return claims.find(claim => claim.sentenceIds.includes(sentenceId)) || null
-}
-

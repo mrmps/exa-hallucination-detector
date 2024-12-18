@@ -6,8 +6,8 @@ interface Claim {
   claim: string;
   assessment: string;
   summary: string;
-  original_text: string;
-  fixed_original_text: string;
+  exact_text: string;
+  fixed_exact_text: string;
   confidence_score: number;
   url_sources?: string[];
 }
@@ -19,7 +19,7 @@ interface PreviewClaimCardProps {
 
 export const PreviewClaimCard: React.FC<PreviewClaimCardProps> = ({ claim, onAcceptFix }) => {
   const isTrue = claim.assessment.toLowerCase().includes('true');
-  const hasFix = claim.fixed_original_text !== claim.original_text;
+  const hasFix = claim.fixed_exact_text !== claim.exact_text;
 
   return (
     <div className="bg-white border rounded-none shadow-sm p-6 space-y-4 opacity-0 animate-fade-up [animation-delay:600ms]">
@@ -75,8 +75,8 @@ export const PreviewClaimCard: React.FC<PreviewClaimCardProps> = ({ claim, onAcc
                 <span className="font-medium text-gray-700">Suggested Fix</span>
             </div>
                 <div className="space-y-2 pb-2">
-                    <p className="text-gray-500 line-through">{claim.original_text}</p>
-                    <p className="text-green-700">{claim.fixed_original_text}</p>
+                    <p className="text-gray-500 line-through">{claim.exact_text}</p>
+                    <p className="text-green-700">{claim.fixed_exact_text}</p>
                 </div>
                 <button
                     onClick={() => onAcceptFix(claim)}

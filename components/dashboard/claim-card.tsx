@@ -51,8 +51,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, isActive, isExpande
                 <Skeleton className="h-4 w-24" />
               )}
             </div>
-            {claim?.exactText ? (
-              <p className="text-sm font-medium mb-1">{claim.exactText}</p>
+            {claim?.claim ? (
+              <p className="text-sm font-medium mb-1">{claim.claim}</p>
             ) : (
               <Skeleton className="h-4 w-full mb-1" />
             )}

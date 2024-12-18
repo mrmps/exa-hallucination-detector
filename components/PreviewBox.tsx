@@ -12,8 +12,8 @@ interface Claim {
   claim: string
   assessment: string
   summary: string
-  original_text: string
-  fixed_original_text: string
+  exact_text: string
+  fixed_exact_text: string
   confidence_score: number
   url_sources?: string[]
 }
@@ -50,11 +50,11 @@ const PreviewBox: React.FC<PreviewBoxProps> = ({ content, claims }) => {
     let lastIndex = 0
 
     const sortedClaims = [...filteredClaims].sort((a, b) => {
-      return displayText.indexOf(a.original_text) - displayText.indexOf(b.original_text)
+      return displayText.indexOf(a.exact_text) - displayText.indexOf(b.exact_text)
     })
 
     sortedClaims.forEach((claim) => {
-      const index = displayText.indexOf(claim.original_text, lastIndex)
+      const index = displayText.indexOf(claim.exact_text, lastIndex)
       if (index !== -1) {
         const previousText = displayText.substring(lastIndex, index)
         segments.push(
@@ -86,7 +86,7 @@ const PreviewBox: React.FC<PreviewBoxProps> = ({ content, claims }) => {
                   `}
                   onClick={() => setSelectedClaim(claim)}
                 >
-                  {claim.original_text}
+                  {claim.exact_text}
                   <span className={`
                     absolute -top-1 -right-1 w-2 h-2 rounded-full
                     ${isTrue ? 'bg-green-500' : 'bg-red-500'}
@@ -102,7 +102,7 @@ const PreviewBox: React.FC<PreviewBoxProps> = ({ content, claims }) => {
             </Tooltip>
           </TooltipProvider>
         )
-        lastIndex = index + claim.original_text.length
+        lastIndex = index + claim.exact_text.length
       }
     })
 
@@ -120,7 +120,7 @@ const PreviewBox: React.FC<PreviewBoxProps> = ({ content, claims }) => {
   }, [displayText, filteredClaims, selectedClaim])
 
   const acceptFix = (claim: Claim) => {
-    setDisplayText(displayText.replace(claim.original_text, claim.fixed_original_text))
+    setDisplayText(displayText.replace(claim.exact_text, claim.fixed_exact_text))
     
     const currentIndex = claimsNeedingFix.indexOf(claim)
     const nextClaim = claimsNeedingFix[currentIndex + 1]

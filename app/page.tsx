@@ -1,6 +1,6 @@
-import FactChecker from "@/components/FactChecker";
+import Landing from "@/components/Landing";
 
 export default function Home() {
-  return <FactChecker />;
+  return <Landing />;
 }
 

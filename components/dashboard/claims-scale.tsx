@@ -26,7 +26,7 @@ export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
         <div className="bg-rose-200 flex-1" />
         <div className="bg-rose-300 flex-1" />
       </div>
-      <div className="grid grid-cols-3 gap-4 text-sm">
+      <div className="grid grid-cols-4 gap-4 text-sm">
         <div>
           <h3 className="text-emerald-700 font-semibold">Supported by sources</h3>
         </div>
@@ -35,6 +35,9 @@ export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
         </div>
         <div>
           <h3 className="text-rose-700 font-semibold">Contradicted by sources</h3>
+        </div>
+        <div>
+          <h3 className="text-gray-700 font-semibold">Insufficient information</h3>
         </div>
       </div>
     </div>

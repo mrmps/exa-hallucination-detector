@@ -1,55 +1,88 @@
 import React from 'react'
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, X, AlertTriangle } from 'lucide-react'
 import { type Claim } from '@/lib/types'
+import { SourceDetail } from './source-detail'
+import { getStatusColor } from '@/utils/helpers'
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface ClaimCardProps {
-  claim: Claim
-  onAcceptFix: (claim: Claim) => void
+  claim: Claim & { verified: boolean }
+  isActive: boolean
+  isExpanded: boolean;
+  onClick: () => void
 }
 
-export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, onAcceptFix }) => {
-  const isTrue = claim.status === 'supported'
-
+export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, isActive, isExpanded, onClick }) => {
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-6 space-y-4">
-        <div className="flex items-start gap-4">
-          <div className={`p-2 rounded-full ${isTrue ? 'bg-green-100' : 'bg-red-100'}`}>
-            {isTrue ? (
-              <CheckCircle2 className="w-6 h-6 text-green-600" />
+    <Card 
+      className={`border ${
+        isActive ? 'ring-2 ring-black ring-offset-2' : ''
+      } cursor-pointer transition-all hover:shadow-md`}
+      onClick={onClick}
+      data-claim-id={claim?.id}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start gap-2">
+          <div className={`mt-0.5 p-1 rounded-full ${claim?.verified ? (claim?.status ? getStatusColor(claim.status) : '') : 'bg-gray-200'}`}>
+            {!claim.verified ? (
+              <AlertTriangle className="h-3 w-3 text-gray-600" />
+            ) : !claim?.status ? (
+              <Skeleton className="h-3 w-3 rounded-full" />
+            ) : claim.status === 'supported' ? (
+              <Check className="h-3 w-3" />
+            ) : claim.status === 'contradicted' ? (
+              <X className="h-3 w-3" />
             ) : (
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <AlertTriangle className="h-3 w-3" />
             )}
           </div>
-          <div className="flex-1 space-y-2">
-            <h3 className="text-lg font-semibold">{isTrue ? 'Verified Claim' : 'False Claim'}</h3>
-            <p className="text-gray-600 dark:text-gray-300">{claim.text}</p>
-          </div>
-          <Badge variant="outline" className={`${isTrue ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-            {claim.confidence}% confident
-          </Badge>
-        </div>
-        <div className="pl-12 space-y-2">
-          <p className="text-sm text-gray-600 dark:text-gray-300">{claim.explanation}</p>
-          {claim.suggestedFix && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Suggested Fix:</p>
-              <p className="text-sm text-blue-600 dark:text-blue-300">{claim.suggestedFix}</p>
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              {!claim.verified ? (
+                <Badge variant="outline" className="bg-gray-200 px-2 py-0.5 text-xs font-medium">
+                  Unverified
+                </Badge>
+              ) : claim?.status ? (
+                <Badge variant="outline" className={`${getStatusColor(claim.status)} px-2 py-0.5 text-xs font-medium`}>
+                  {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
+                </Badge>
+              ) : (
+                <Skeleton className="h-4 w-20" />
+              )}
+              {claim?.confidence !== null ? (
+                <span className="text-xs text-gray-500">{claim.confidence}% Confident</span>
+              ) : (
+                <Skeleton className="h-4 w-24" />
+              )}
             </div>
-          )}
+            {claim?.exactText ? (
+              <p className="text-sm font-medium mb-1">{claim.claim}</p>
+            ) : (
+              <Skeleton className="h-4 w-full mb-1" />
+            )}
+            {claim?.explanation ? (
+              <p className="text-xs text-gray-600">{claim.explanation}</p>
+            ) : (
+              <Skeleton className="h-4 w-3/4" />
+            )}
+            {claim?.suggestedFix && (
+              <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                <p className="text-xs font-medium text-blue-700">Suggested Fix:</p>
+                <p className="text-xs text-blue-600">{claim.suggestedFix}</p>
+              </div>
+            )}
+          </div>
         </div>
-        {claim.suggestedFix && (
-          <div className="pl-12">
-            <Button onClick={() => onAcceptFix(claim)} className="w-full sm:w-auto">
-              Accept Fix
-            </Button>
+        {isExpanded && claim?.sources && (
+          <div className="mt-2 space-y-2">
+            {claim.sources.map((source, index) => (
+              <SourceDetail key={index} source={source} />
+            ))}
           </div>
         )}
       </CardContent>
     </Card>
   )
 }
-

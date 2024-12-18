@@ -4,10 +4,6 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import {
   ClerkProvider,
-  SignInButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
 } from "@clerk/nextjs";
 import NavBar from "@/components/NavBar";
 import { Toaster } from "@/components/ui/toaster";
