@@ -86,7 +86,7 @@ export default function LandingPage() {
         <div className="text-center max-w-[640px] mx-auto">
           <div className="inline-flex items-center justify-center">
             <span className="inline-flex items-center rounded-full border border-neutral-200/70 bg-white px-3 py-1 text-sm text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_3px_10px_rgba(0,0,0,0.04)] hover:border-neutral-300/70">
-              🎉 <span className="mx-2 h-3 w-px bg-neutral-200" /> New AI-Powered Tool
+              🎉 <span className="mx-2 h-3 w-px bg-neutral-200" /> Powered by Exa
             </span>
           </div>
           <h1 className="mt-6 text-[2.75rem] font-bold tracking-tight text-neutral-900 sm:text-5xl md:text-6xl [text-wrap:balance] [-webkit-text-stroke:1px_#000000] [text-shadow:0_4px_4px_rgba(0,0,0,0.05)]">

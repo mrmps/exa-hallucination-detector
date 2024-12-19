@@ -16,7 +16,7 @@ export function ClaimsScale({ claimsCount }: ClaimsScaleProps) {
           </h2>
         )}
         <p className="text-gray-500 text-sm">
-          Click on claims to discover new sources.
+          Click on claims to view sources.
         </p>
       </div>
       <div className="flex items-stretch h-2 rounded-full overflow-hidden">
