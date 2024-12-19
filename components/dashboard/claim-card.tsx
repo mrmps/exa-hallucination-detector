@@ -1,3 +1,5 @@
+// claim-card.tsx
+
 import React from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -5,6 +7,7 @@ import { Check, X, AlertTriangle } from 'lucide-react'
 import { type Claim, type MergedSource } from '@/lib/schemas'
 import { SourceDetail } from './source-detail'
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 function getStatusStyles(status: Claim['status']) {
   switch (status) {
@@ -24,7 +27,7 @@ function getStatusStyles(status: Claim['status']) {
 interface ClaimCardProps {
   claim: Claim
   isActive: boolean
-  isExpanded: boolean;
+  isExpanded: boolean
   onClick: () => void
 }
 
@@ -33,57 +36,61 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, isActive, isExpande
 
   return (
     <Card
-      className={`border border-gray-200 ${
-        isActive ? 'ring-2 ring-gray-300 ring-offset-2' : ''
-      } cursor-pointer transition-all hover:shadow-md`}
+      className={cn(
+        "border rounded-md bg-white hover:shadow-md transition-all duration-200 cursor-pointer",
+        isActive 
+          ? "border-gray-300 ring-2 ring-gray-100 ring-offset-2" 
+          : "border-gray-100 hover:border-gray-200"
+      )}
       onClick={onClick}
       data-claim-id={claim?.id}
     >
-      <CardContent className="p-3">
-        <div className="flex items-start gap-2">
-          <div className="mt-0.5 p-1 rounded-full bg-white border border-gray-200">
-            {!claim?.status ? (
-              <Skeleton className="h-3 w-3 rounded-full" />
-            ) : (
-              statusStyles?.icon
-            )}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              {claim?.status ? (
-                <Badge variant="outline" className={`px-2 py-0.5 text-xs font-medium border ${statusStyles?.badgeClasses}`}>
-                  {claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}
-                </Badge>
-              ) : (
-                <Skeleton className="h-4 w-20" />
-              )}
-              {claim?.confidence !== null ? (
-                <span className="text-xs text-gray-500">{claim.confidence}% Confident</span>
-              ) : (
-                <Skeleton className="h-4 w-24" />
-              )}
-            </div>
-            {claim?.claim ? (
-              <p className="text-sm font-medium text-gray-800 mb-1">{claim.claim}</p>
-            ) : (
-              <Skeleton className="h-4 w-full mb-1" />
-            )}
-            {claim?.explanation ? (
-              <p className="text-xs text-gray-700">{claim.explanation}</p>
-            ) : (
-              <Skeleton className="h-4 w-3/4" />
-            )}
-            {claim?.suggestedFix && (
-              <div className="mt-2 p-2 bg-blue-50 rounded-md">
-                <p className="text-xs font-medium text-blue-700">Suggested Fix:</p>
-                <p className="text-xs text-blue-600">{claim.suggestedFix}</p>
-              </div>
-            )}
-          </div>
+      <CardContent className="p-4">
+        {/* Top row: Status and Confidence */}
+        <div className="flex items-center space-x-2">
+          {!claim?.status ? (
+            <Skeleton className="h-3 w-3 rounded-full" />
+          ) : (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusStyles?.badgeClasses}`}>
+              {statusStyles?.icon}
+              <span className="ml-1">{claim.status.charAt(0).toUpperCase() + claim.status.slice(1)}</span>
+            </span>
+          )}
+          {claim?.confidence !== null && (
+            <span className="text-xs text-gray-500">
+              {claim.confidence}% Confident
+            </span>
+          )}
         </div>
 
+        {/* Claim text */}
+        {claim?.claim ? (
+          <h2 className="text-sm font-medium text-gray-900 mt-2">{claim.claim}</h2>
+        ) : (
+          <Skeleton className="h-4 w-full mt-2" />
+        )}
+
+        {/* Explanation */}
+        {claim?.explanation ? (
+          <p className="text-sm text-gray-700 mt-2">{claim.explanation}</p>
+        ) : (
+          <Skeleton className="h-4 w-3/4 mt-2" />
+        )}
+
+        {/* Suggested Fix */}
+        {claim?.suggestedFix && (
+          <section aria-label="Suggested fix" className="mt-2 bg-blue-50 p-3 rounded-md">
+            <p className="text-xs font-medium text-blue-700">Suggested Fix:</p>
+            <p className="text-xs text-blue-600 mt-0.5">{claim.suggestedFix}</p>
+          </section>
+        )}
+
+        {/* Sources */}
         {isExpanded && claim?.sources && claim.sources.length > 0 && (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+            {/* We could add a heading for sources if desired:
+            <h3 className="text-xs font-medium text-gray-900">Sources</h3>
+            */}
             {claim.sources.map((source: MergedSource, index: number) => (
               <SourceDetail key={index} source={source} />
             ))}
