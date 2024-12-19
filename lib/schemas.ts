@@ -7,21 +7,30 @@ import { z } from 'zod';
 
 export const ClaimStatusSchema = z.enum([
   'supported',
-  'debated',
+  'debated', 
   'contradicted',
   'insufficient information',
   'not yet verified'
 ]);
 export type ClaimStatus = z.infer<typeof ClaimStatusSchema>;
 
+export const SourceStanceSchema = z.enum([
+  'support',
+  'contradict',
+  'not relevant',
+  'unclear'
+]);
+export type SourceStance = z.infer<typeof SourceStanceSchema>;
+
 export const MergedSourceSchema = z.object({
   url: z.string().url(),
   title: z.string().optional(),
   sourceNumber: z.number(),
   sourceText: z.string(),
-  supports: z.boolean(),
+  stance: SourceStanceSchema,
   agreementPercentage: z.number().min(0).max(100),
-  pertinence: z.number().min(0).max(100)
+  pertinence: z.number().min(0).max(100),
+  relevantSnippet: z.string().optional()
 });
 export type MergedSource = z.infer<typeof MergedSourceSchema>;
 
@@ -44,8 +53,12 @@ export type Claim = z.infer<typeof ClaimSchema>;
 // -----------------------------------
 
 export const LLMExtractedClaimSchema = z.object({
-  claim: z.string(),
-  exactText: z.string()
+  claim: z.string().describe(
+    "The extracted claim in a single verifiable statement. Should include all information necessary to verify the statement in isolation."
+  ),
+  exactText: z.string().describe(
+    "The original portion of text that contains the claim. Must be a continuous, uninterrupted sequence from the source text."
+  )
 });
 export type LLMExtractedClaim = z.infer<typeof LLMExtractedClaimSchema>;
 
@@ -98,19 +111,20 @@ export type ExaSource = z.infer<typeof ExaSourceSchema>;
 
 // LLM verification cited source (no text fields):
 export const LLMCitedSourceSchema = z.object({
-  sourceNumber: z.number(),
-  supports: z.boolean(),
-  agreementPercentage: z.number().min(0).max(100),
-  pertinence: z.number().min(0).max(100)
+  sourceNumber: z.number().describe('The index number of the source, matching ExaSource sourceNumber'),
+  stance: SourceStanceSchema.describe('Whether this source supports or contradicts the claim'),
+  agreementPercentage: z.number().min(0).max(100).describe('How strongly this source agrees with the claim, from 0-100%'),
+  pertinence: z.number().min(0).max(100).describe('How relevant this source is to the claim topic, from 0-100%'), 
+  relevantSnippet: z.string().describe('The specific text excerpt from the source that relates to the claim')
 });
 export type LLMCitedSource = z.infer<typeof LLMCitedSourceSchema>;
 
 // LLM verification result for a single claim:
 export const LLMVerificationResultSchema = z.object({
-  status: ClaimStatusSchema,
-  confidence: z.number().min(0).max(100),
-  explanation: z.string(),
-  suggestedFix: z.string().optional(),
-  citedSources: z.array(LLMCitedSourceSchema)
+  status: ClaimStatusSchema.describe('The verification status of the claim: supported, contradicted, debated, or insufficient information'),
+  confidence: z.number().min(0).max(100).describe('Confidence score from 0-100 indicating how confident the verification is'),
+  explanation: z.string().describe('Detailed explanation of the verification result, with source references like {{1}}, {{2}}'),
+  suggestedFix: z.string().optional().describe('If status is contradicted, provides corrected version of the claim text'),
+  citedSources: z.array(LLMCitedSourceSchema).describe('Array of sources cited in the explanation, with stance and relevance metrics')
 });
 export type LLMVerificationResult = z.infer<typeof LLMVerificationResultSchema>;

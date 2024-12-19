@@ -8,8 +8,8 @@ interface SourceDetailProps {
 }
 
 export function SourceDetail({ source }: SourceDetailProps) {
-  const supportsLabel = source.supports ? 'Supports' : 'Does not support';
-  const supportsColor = source.supports ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+  const supportsLabel = source.stance === 'support' ? 'Supports' : 'Does not support';
+  const supportsColor = source.stance === 'support' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
 
   return (
     <div>
@@ -27,7 +27,7 @@ export function SourceDetail({ source }: SourceDetailProps) {
         {source.title || 'Untitled Source'}
       </a>
       <p className="mt-1 text-sm text-gray-600">
-        "{source.sourceText}"
+        "{source.relevantSnippet}"
       </p>
       <span className={`inline-block mt-1 rounded px-1 text-xs font-medium ${supportsColor}`}>
         {supportsLabel}

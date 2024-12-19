@@ -53,18 +53,18 @@ async function verifyClaimWithLLM(claimText: string, sources: z.infer<typeof Exa
   const { object } = await generateObject({
     model: openai('gpt-4o-mini'),
     schema: LLMVerificationResultSchema,
-    prompt: `You are an expert fact-checker. Given a claim and its sources, verify the claim.
+    prompt: `You are an expert fact-checker. Given a claim and its sources, verify the claim comprehensively.
+Instructions:
+- Read the claim carefully.
+- Analyze the provided sources, determining how each relates to the claim.
+- status: Choose one of "supported", "contradicted", "debated", or "insufficient information".
+- confidence: Provide a numeric 0-100 confidence score in your conclusion.
+- explanation: A detailed, clear explanation. Include references like {{1}}, {{2}} at the end of sentences that rely on the corresponding sources. Make sure every reference number corresponds to a sourceNumber in citedSources.
+- If status is "contradicted", provide a suggestedFix with a corrected version of the claim.
+- For citedSources: Each sourceNumber must match exactly those cited in explanation. supports = true/false based on if it directly supports the claim. agreementPercentage and pertinence show how strongly it supports or relates to the claim.
+}
 
-For the claim:
-- Determine status: "supported", "contradicted", "debated", or "insufficient information"
-- Provide confidence (0-100)
-- Provide an explanation with {{source_number}} references at the end of relevant sentences.
-- If contradicted, provide a suggestedFix string.
-- Provide citedSources array with:
-  - sourceNumber
-  - supports (boolean)
-  - agreementPercentage (0-100)
-  - pertinence (0-100)
+Now apply this logic to the following input.
 
 Claim:
 ${claimText}

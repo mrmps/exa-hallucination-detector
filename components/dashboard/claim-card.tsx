@@ -31,6 +31,47 @@ interface ClaimCardProps {
   onClick: () => void
 }
 
+const SourceLink: React.FC<{ sourceNumber: number, sources: MergedSource[] }> = ({ 
+  sourceNumber, 
+  sources 
+}) => {
+  const source = sources?.find(s => s.sourceNumber === sourceNumber);
+  if (!source) return null;
+
+  return (
+    <a
+      href={source.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex relative -top-[1px] items-center justify-center rounded-full px-[0.3em] text-[0.60rem] font-mono bg-gray-100 text-gray-700 hover:bg-zinc-200 transition duration-300 min-w-[1rem] h-[1rem] -ml-3"
+    >
+      {sourceNumber}
+    </a>
+  );
+};
+
+
+const parseExplanationWithSources = (explanation: string, sources: MergedSource[]) => {
+  if (!explanation) return null;
+  
+  const parts = explanation.split(/(\{\{[0-9]+\}\})/g);
+  
+  return parts.map((part, index) => {
+    const match = part.match(/\{\{([0-9]+)\}\}/);
+    if (match) {
+      const sourceNumber = parseInt(match[1], 10);
+      return (
+        <SourceLink 
+          key={index} 
+          sourceNumber={sourceNumber} 
+          sources={sources}
+        />
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, isActive, isExpanded, onClick }) => {
   const statusStyles = claim?.status ? getStatusStyles(claim.status) : null;
 
@@ -72,7 +113,9 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({ claim, isActive, isExpande
 
         {/* Explanation */}
         {claim?.explanation ? (
-          <p className="text-sm text-gray-700 mt-2">{claim.explanation}</p>
+          <p className="text-sm text-gray-700 mt-2 space-x-1">
+            {parseExplanationWithSources(claim.explanation, claim.sources || [])}
+          </p>
         ) : (
           <Skeleton className="h-4 w-3/4 mt-2" />
         )}
