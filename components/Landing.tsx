@@ -1,4 +1,3 @@
-// app/components/LandingPage.tsx
 "use client";
 
 import * as React from "react";
@@ -13,58 +12,60 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import FactCheckTool from "./textarea-landing";
+import { Hero } from './modern-hero';
+import ButtonCTA from "./ButtonCTA";
 
 const howItWorks = [
   {
-    title: "Paste Your Text",
-    description: "Drop in your article, essay, or claims that need verification.",
+    title: "Submit AI-Generated Content",
+    description: "Paste any LLM-produced text to identify potential hallucinations and inaccuracies",
     icon: FileCheck,
   },
   {
-    title: "AI Analysis",
-    description: "Our AI identifies key facts and checks them against trusted sources.",
+    title: "Deep Truth Analysis",
+    description: "Our system cross-references claims against the entire web in real-time",
     icon: Search,
   },
   {
-    title: "Get Results",
-    description: "Review the verification report with confidence scores and sources.",
+    title: "Get Verified Insights",
+    description: "Receive line-by-line accuracy ratings with source citations and correction suggestions",
     icon: Database,
   },
 ];
 
 const benefits = [
   {
-    title: "Save Hours of Research",
-    description: "Stop manually fact-checking. Let AI handle the heavy lifting while you focus on writing.",
+    title: "Eliminate AI Hallucinations",
+    description: "Automatically flag unverified claims before they damage your credibility",
     icon: FileCheck,
   },
   {
-    title: "Build Trust & Credibility",
-    description: "Every claim is verified against reliable sources, giving your content authority.",
+    title: "Fact-Check at Scale", 
+    description: "Process 10,000 words in seconds - perfect for long-form AI content verification",
     icon: CheckCircle,
   },
   {
-    title: "Write with Confidence",
-    description: "Know that your content is accurate before you publish, every single time.",
+    title: "Source-Based Corrections",
+    description: "Get evidence-backed rewriting suggestions for any questionable claims",
     icon: ExternalLink,
   },
 ];
 
 const testimonials = [
   {
-    quote: "FactFilter has transformed our editorial process. What used to take hours now takes minutes.",
+    quote: "Cut our LLM hallucination rate by 92% while maintaining output volume. Essential for any AI content workflow.",
     name: "Sarah Johnson",
-    title: "Editor at TechDaily"
+    title: "AI Content Lead at TechDaily"
   },
   {
-    quote: "The accuracy and speed of verification have made this an essential tool for our research team.",
-    name: "Michael Chen",
-    title: "Research Director"
+    quote: "Finally a solution that lets us scale AI content responsibly. The source citations alone are worth it.",
+    name: "Michael Chen", 
+    title: "Head of AI Operations"
   },
   {
-    quote: "We've cut our fact-checking time by 80% while improving accuracy. It's a game-changer.",
+    quote: "Our fact-checking team now focuses on high-value work instead of chasing false claims.",
     name: "Emily Rodriguez",
-    title: "Content Strategy Lead"
+    title: "Content Integrity Director"
   },
 ];
 
@@ -81,182 +82,160 @@ export default function LandingPage() {
         }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-16">
-        {/* Hero Section */}
-        <div className="max-w-[640px]">
-          <div className="flex items-center gap-1 text-sm text-neutral-600">
-            <div className="flex items-center">
-              ⭐️⭐️⭐️⭐️⭐️ 
-              <span className="ml-1">142 reviews</span>
+      <Hero
+        title="Stop AI Hallucinations in Their Tracks"
+        description="Verify every claim in your AI-generated content against trusted sources. Prevent misinformation and maintain credibility with real-time fact validation."
+        buttonText="Start Fact-Checking"
+        avatars={[
+          { src: "/avatars/avatar-1.png", alt: "User avatar 1" },
+          { src: "/avatars/avatar-2.png", alt: "User avatar 2" },
+          { src: "/avatars/avatar-3.png", alt: "User avatar 3" },
+        ]}
+        rating={{
+          value: 5,
+          count: 142
+        }}
+        className="py-16 mt-10"
+      />
+
+      {/* Fact Check Tool */}
+      <div className="mt-10">
+        <FactCheckTool />
+      </div>
+
+      {/* Trust Signals */}
+      <div className="mt-16 space-y-4 text-center">
+        <p className="text-sm text-neutral-600">
+          Trusted by writers, researchers, and professionals worldwide
+        </p>
+        <div className="flex justify-center gap-x-8 grayscale opacity-80">
+          {['Vercel', 'Raycast', 'Linear', 'Mercury'].map((company) => (
+            <div key={company} className="text-neutral-400 hover:opacity-75 transition-opacity duration-200">
+              {company}
             </div>
-            <span className="mx-2">•</span>
-            <span>324 users fact-checking with us</span>
-          </div>
-          <h1 className="mt-4 text-[2.75rem] font-bold tracking-tight text-neutral-900 sm:text-4xl md:text-5xl">
-            Find <span className="text-indigo-600">accurate facts</span> in minutes.
-          </h1>
-          <p className="mt-4 text-lg leading-relaxed text-neutral-800">
-            Get facts faster. Create content, add claims and quickly verify thousands of well-researched sources from around the web.
+          ))}
+        </div>
+      </div>
+
+      {/* How It Works + Demo */}
+      <div className="mt-32 max-w-5xl mx-auto">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">Truth Validation Engine</h2>
+          <p className="text-neutral-600 max-w-xl mx-auto [text-wrap:balance] leading-relaxed">
+            Our three-step process identifies and corrects LLM hallucinations before they reach your audience
           </p>
-          <ul className="mt-6 space-y-3">
-            <li className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <span>Thousands of verified sources and expert fact-checks</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <span>5 minute verification process</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <span>Secure and safe</span>
-            </li>
-          </ul>
         </div>
 
-        {/* Fact Check Tool */}
-        <div className="mt-10">
-          <FactCheckTool />
-        </div>
-
-        {/* Trust Signals */}
-        <div className="mt-16 space-y-4 text-center">
-          <p className="text-sm text-neutral-600">
-            Trusted by writers, researchers, and professionals worldwide
-          </p>
-          <div className="flex justify-center gap-x-8 grayscale opacity-80">
-            {['Vercel', 'Raycast', 'Linear', 'Mercury'].map((company) => (
-              <div key={company} className="text-neutral-400 hover:opacity-75 transition-opacity duration-200">
-                {company}
+        <div className="grid md:grid-cols-3 gap-8">
+          {howItWorks.map((step, i) => (
+            <div key={i} className="relative group">
+              <div className="absolute -top-4 right-4 text-neutral-300 text-7xl font-bold">
+                {i + 1}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* How It Works + Demo */}
-        <div className="mt-32 max-w-5xl mx-auto">
-          <div className="text-center space-y-4 mb-16">
-            <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">How It Works</h2>
-            <p className="text-neutral-600 max-w-xl mx-auto [text-wrap:balance] leading-relaxed">
-              FactFilter simplifies verification into a few easy steps—try it yourself and see instant results.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {howItWorks.map((step, i) => (
-              <div key={i} className="relative group">
-                <div className="absolute -top-4 right-4 text-neutral-300 text-7xl font-bold">
-                  {i + 1}
-                </div>
-                <Card className="relative h-full border-neutral-200/70 bg-white/70 p-6 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)]">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 transition-colors duration-300 group-hover:bg-neutral-200">
-                    <step.icon className="h-6 w-6 text-neutral-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-neutral-900 mb-2">{step.title}</h3>
-                  <p className="text-sm text-neutral-600 leading-relaxed">{step.description}</p>
-                </Card>
-              </div>
-            ))}
-          </div>
-
-          {/* Inline Demo */}
-          <Card className="mt-16 mx-auto max-w-2xl border-neutral-200/70 bg-white/70 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)] p-6 hover:shadow-[0_0_1px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.08)] transition-all duration-300">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <p className="text-sm font-medium text-neutral-600">Live Example</p>
-                </div>
-                <p className="text-neutral-700 leading-relaxed">
-                  <span className="bg-green-100/50 px-1 py-0.5 rounded">"The Eiffel Tower is 324 meters tall."</span>
-                  {' '}
-                  <span className="bg-yellow-100/50 px-1 py-0.5 rounded">"It was built in 1887."</span>
-                </p>
-              </div>
-              
-              <div className="space-y-3 text-sm border-t border-neutral-200/70 pt-4">
-                <div className="flex items-start">
-                  <CheckCircle className="text-green-500 mr-2 mt-0.5 h-4 w-4 flex-shrink-0" />
-                  <p><span className="font-medium text-neutral-900">Verified:</span> The Eiffel Tower is ~324 meters tall.</p>
-                </div>
-                <div className="flex items-start">
-                  <AlertTriangle className="text-yellow-500 mr-2 mt-0.5 h-4 w-4 flex-shrink-0" />
-                  <p><span className="font-medium text-neutral-900">Needs refinement:</span> Construction began in 1887 but completed in 1889.</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Benefits Section */}
-        <div className="mt-32">
-          <div className="text-center space-y-4 mb-16">
-            <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">Key Benefits</h2>
-            <p className="text-neutral-600 max-w-xl mx-auto [text-wrap:balance] leading-relaxed">
-              Experience the power of AI-driven fact-checking that saves time and builds trust.
-            </p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto">
-            {benefits.map((benefit, i) => (
-              <Card 
-                key={i} 
-                className="relative border-neutral-200/70 bg-white/70 p-6 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)]"
-              >
+              <Card className="relative h-full border-neutral-200/70 bg-white/70 p-6 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)]">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 transition-colors duration-300 group-hover:bg-neutral-200">
-                  <benefit.icon className="h-6 w-6 text-neutral-600" />
+                  <step.icon className="h-6 w-6 text-neutral-600" />
                 </div>
-                <h3 className="text-lg font-medium text-neutral-900 mb-2">{benefit.title}</h3>
-                <p className="text-sm text-neutral-600 leading-relaxed">{benefit.description}</p>
+                <h3 className="text-lg font-medium text-neutral-900 mb-2">{step.title}</h3>
+                <p className="text-sm text-neutral-600 leading-relaxed">{step.description}</p>
               </Card>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
-        {/* Testimonials */}
-        <div className="mt-32 max-w-6xl mx-auto">
-          <div className="text-center space-y-4 mb-16">
-            <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">Trusted by Industry Leaders</h2>
-            <p className="text-neutral-600 max-w-xl mx-auto [text-wrap:balance] leading-relaxed">
-              See why professionals choose FactFilter for their content verification needs.
-            </p>
+        {/* Inline Demo */}
+        <Card className="mt-16 mx-auto max-w-2xl border-neutral-200/70 bg-white/70 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)] p-6 hover:shadow-[0_0_1px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.08)] transition-all duration-300">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <p className="text-sm font-medium text-neutral-600">Live Example</p>
+              </div>
+              <p className="text-neutral-700 leading-relaxed">
+                <span className="bg-green-100/50 px-1 py-0.5 rounded">"The Eiffel Tower is 324 meters tall."</span>
+                {' '}
+                <span className="bg-yellow-100/50 px-1 py-0.5 rounded">"It was built in 1887."</span>
+              </p>
+            </div>
+            
+            <div className="space-y-3 text-sm border-t border-neutral-200/70 pt-4">
+              <div className="flex items-start">
+                <CheckCircle className="text-green-500 mr-2 mt-0.5 h-4 w-4 flex-shrink-0" />
+                <p><span className="font-medium text-neutral-900">Verified:</span> The Eiffel Tower is ~324 meters tall.</p>
+              </div>
+              <div className="flex items-start">
+                <AlertTriangle className="text-yellow-500 mr-2 mt-0.5 h-4 w-4 flex-shrink-0" />
+                <p><span className="font-medium text-neutral-900">Needs refinement:</span> Construction began in 1887 but completed in 1889.</p>
+              </div>
+            </div>
           </div>
+        </Card>
+      </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((t, idx) => (
-              <Card key={idx} className="p-6 border-neutral-200/70 bg-white/70 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)]">
-                <div className="mb-4">
-                  <p className="text-neutral-600 text-sm leading-relaxed">{t.quote}</p>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-neutral-100 rounded-full mr-3 flex items-center justify-center text-neutral-600 font-medium text-sm">
-                    {t.name[0]}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-neutral-900">{t.name}</p>
-                    <p className="text-xs text-neutral-500">{t.title}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+      {/* Benefits Section */}
+      <div className="mt-32">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">Key Benefits</h2>
+          <p className="text-neutral-600 max-w-xl mx-auto [text-wrap:balance] leading-relaxed">
+            Experience the power of AI-driven fact-checking that saves time and builds trust.
+          </p>
         </div>
 
-        {/* CTA Section */}
-        <div className="mt-32 text-center max-w-2xl mx-auto">
-          <Card className="border-neutral-200/70 bg-white/70 p-8 shadow-[0_0_1px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-[0_0_1px_rgba(0,0,0,0.04),0_8px_16px_rgba(0,0,0,0.08)]">
-            <h2 className="text-2xl font-semibold mb-4 text-neutral-900 tracking-tight">Ready to Try FactFilter?</h2>
-            <p className="text-neutral-600 mb-6 [text-wrap:balance] leading-relaxed">
-              Get started now with a free trial—no credit card required, no commitments.
-            </p>
-            <Button 
-              className="px-8 h-12 text-sm font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-all duration-300 shadow-[0_2px_4px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_8px_rgba(0,0,0,0.08),0_8px_16px_rgba(0,0,0,0.08)] active:translate-y-[1px] active:shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]"
+        <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto">
+          {benefits.map((benefit, i) => (
+            <Card 
+              key={i} 
+              className="relative border-neutral-200/70 bg-white/70 p-6 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)]"
             >
-              Start Your Free Trial
-            </Button>
-            <p className="mt-4 text-sm text-neutral-500">Get 5 free verifications • Upgrade anytime</p>
-          </Card>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 transition-colors duration-300 group-hover:bg-neutral-200">
+                <benefit.icon className="h-6 w-6 text-neutral-600" />
+              </div>
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">{benefit.title}</h3>
+              <p className="text-sm text-neutral-600 leading-relaxed">{benefit.description}</p>
+            </Card>
+          ))}
         </div>
+      </div>
+
+      {/* Testimonials */}
+      <div className="mt-32 max-w-6xl mx-auto">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">Trusted by Industry Leaders</h2>
+          <p className="text-neutral-600 max-w-xl mx-auto [text-wrap:balance] leading-relaxed">
+            See why professionals choose FactFilter for their content verification needs.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          {testimonials.map((t, idx) => (
+            <Card key={idx} className="p-6 border-neutral-200/70 bg-white/70 shadow-[0_0_1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.04)]">
+              <div className="mb-4">
+                <p className="text-neutral-600 text-sm leading-relaxed">{t.quote}</p>
+              </div>
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-neutral-100 rounded-full mr-3 flex items-center justify-center text-neutral-600 font-medium text-sm">
+                  {t.name[0]}
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-neutral-900">{t.name}</p>
+                  <p className="text-xs text-neutral-500">{t.title}</p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA Section */}
+      <div className="mt-32 text-center max-w-2xl mx-auto">
+        <Card className="border-neutral-200/70 bg-white/70 p-8 shadow-[0_0_1px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:shadow-[0_0_1px_rgba(0,0,0,0.04),0_8px_16px_rgba(0,0,0,0.08)]">
+          <h2 className="text-2xl font-semibold mb-4 text-neutral-900 tracking-tight">AI Content Guardrails</h2>
+          <p className="text-neutral-600 mb-6 [text-wrap:balance] leading-relaxed">
+            Get started now with a free trial—no credit card required, no commitments.
+          </p>
+          <ButtonCTA />
+          <p className="mt-4 text-sm text-neutral-500">Includes plagiarism detection • Source citations • Compliance reporting</p>
+        </Card>
       </div>
     </div>
   );

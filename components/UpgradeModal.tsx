@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { X, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,11 +18,23 @@ import { NiceBlueButton } from "./ui/nice-blue-button";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function UpgradeModal() {
-  const [open, setOpen] = React.useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isOpen = searchParams.get("upgrade") === "true";
   const [plans, setPlans] = React.useState<any[]>([]);
   const [plan, setPlan] = React.useState("");
   const { isMobile } = useMediaQuery();
   const { toast } = useToast();
+
+  const setOpen = (open: boolean) => {
+    const params = new URLSearchParams(searchParams);
+    if (open) {
+      params.set("upgrade", "true");
+    } else {
+      params.delete("upgrade");
+    }
+    router.replace(`?${params.toString()}`);
+  };
 
   React.useEffect(() => {
     const fetchPlans = async () => {
@@ -107,7 +120,7 @@ export default function UpgradeModal() {
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={setOpen}>
+      <Drawer open={isOpen} onOpenChange={setOpen}>
         <DrawerTrigger asChild>
           <Button variant="outline">Upgrade to Premium</Button>
         </DrawerTrigger>
@@ -148,7 +161,7 @@ export default function UpgradeModal() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">Upgrade to Premium</Button>
       </DialogTrigger>

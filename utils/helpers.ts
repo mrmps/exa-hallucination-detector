@@ -1,5 +1,3 @@
-import { Claim } from '../lib/types'
-
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'supported':

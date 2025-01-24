@@ -9,29 +9,29 @@ import NavBar from "@/components/NavBar";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "Hallucinations Detector Tool",
-  description: "Detect Hallucinations in Your Content Instantly for Free.",
-  metadataBase: new URL("https://demo.exa.ai/hallucination-detector"),
+  title: "FactFilter - Find Accurate Facts in Minutes",
+  description: "Get facts faster. Create content, add claims and quickly verify thousands of well-researched sources from around the web.",
+  metadataBase: new URL("https://factfilter.co"),
 
   // Favicon
   icons: {
-    icon: "/favicon1.ico",
-    shortcut: "/favicon1.ico",
-    apple: "/favicon1.ico",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico", 
+    apple: "/favicon.ico",
   },
 
   // Open Graph
   openGraph: {
-    title: "Hallucinations Detector Tool",
-    description: "Detect Hallucinations in Your Content Instantly for Free.",
-    url: "https://demo.exa.ai/hallucination-detector",
-    siteName: "Hallucinations Detector Tool",
+    title: "FactFilter - Find Accurate Facts in Minutes",
+    description: "Get facts faster. Create content, add claims and quickly verify thousands of well-researched sources from around the web.",
+    url: "https://factfilter.co",
+    siteName: "FactFilter",
     images: [
       {
         url: "/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "Hallucinations Detector Tool",
+        alt: "FactFilter - AI-Powered Fact Checking",
       },
     ],
     locale: "en_US",
@@ -41,9 +41,9 @@ export const metadata: Metadata = {
   // Twitter
   twitter: {
     card: "summary_large_image",
-    title: "Hallucinations Detector Tool",
-    description: "Detect Hallucinations in Your Content Instantly for Free.",
-    images: ["https://demo.exa.ai/hallucination-detector/opengraph-image.jpg"],
+    title: "FactFilter - Find Accurate Facts in Minutes",
+    description: "Get facts faster. Create content, add claims and quickly verify thousands of well-researched sources from around the web.",
+    images: ["https://factfilter.co/opengraph-image.png"],
   },
 };
 

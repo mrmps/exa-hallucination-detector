@@ -12,42 +12,38 @@ export default async function DashboardPage({
   });
   const parseResult = searchParamsSchema.safeParse(searchParams);
 
-  if (!parseResult.success) {
+  if (!parseResult.success || !parseResult.data.id) {
     return (
-      <div>
-        <h1>No Submission ID Provided</h1>
-        <p>Please submit your text first.</p>
+      <div className="flex h-[100dvh] flex-col items-center overflow-hidden">
+        <FactChecker
+          submissionId=""
+          text=""
+        />
       </div>
     );
   }
 
   const { id } = parseResult.data;
-  
-  if (!id) {
-    return (
-      <div>
-        <h1>No Submission ID Provided</h1>
-        <p>Please submit your text first.</p>
-      </div>
-    );
-  }
-
   const submission = await getSubmissionById(id);
 
   if (!submission) {
     return (
-      <div>
-        <h1>Submission Not Found</h1>
-        <p>The submission with the provided ID does not exist.</p>
+      <div className="flex h-[100dvh] flex-col items-center overflow-hidden">
+        <FactChecker
+          submissionId=""
+          text=""
+        />
       </div>
     );
   }
 
   if (typeof submission.content !== 'string') {
     return (
-      <div>
-        <h1>Invalid Submission Data</h1>
-        <p>The submission data is incomplete or malformed.</p>
+      <div className="flex h-[100dvh] flex-col items-center overflow-hidden">
+        <FactChecker
+          submissionId=""
+          text=""
+        />
       </div>
     );
   }
