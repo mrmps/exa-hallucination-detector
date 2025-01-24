@@ -1,6 +1,6 @@
 import { Star } from "lucide-react"
 import { Avatar, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import CTAButton from "./ButtonCTA"
 import { cn } from "@/lib/utils"
 
 interface HeroProps extends React.HTMLAttributes<HTMLElement> {
@@ -36,13 +36,11 @@ export function Hero({
           <h1 className="text-center text-3xl font-extrabold lg:text-6xl">
             {title}
           </h1>
-          <p className="text-balance text-center text-muted-foreground lg:text-lg">
+          <p className="text-balance text-center text-muted-foreground lg:text-lg mb-6">
             {description}
           </p>
         </div>
-        <Button size="lg" className="mt-10">
-          {buttonText}
-        </Button>
+        <CTAButton />
         {/* <div className="mt-10 flex w-full max-w-fit flex-col items-center justify-center gap-4 sm:flex-row">
           <span className="inline-flex items-center -space-x-4">
             {avatars.map((avatar, index) => (

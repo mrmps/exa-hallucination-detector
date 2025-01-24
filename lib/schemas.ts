@@ -54,15 +54,56 @@ export type Claim = z.infer<typeof ClaimSchema>;
 // -----------------------------------
 export const LLMExtractedClaimSchema = z.object({
   claim: z.string().describe(
-    "The extracted claim in a single verifiable statement. Should include all information necessary to verify the statement in isolation."
+    `COMPLETE STANDALONE CLAIM WITH FULL CONTEXT. MUST:
+    1. Be fully self-contained and understandable without source text
+    2. Include all necessary context from elsewhere in the document
+    3. Replace pronouns with specific nouns/terms
+    4. Use full names instead of abbreviations
+    5. Make implicit subjects explicit
+    6. Contain specific searchable details
+    
+    FORBIDDEN:
+    ❌ Claims requiring original text context
+    ❌ Unclear references ("this technique", "the system")
+    ❌ Process descriptions ("At query time...")
+    ❌ Vague statements without metrics/names
+    
+    BAD EXAMPLE: "This model handles context efficiently"
+    GOOD EXAMPLE: "The Llama 3.1 405B model processes 160,000 tokens of context using grouped attention heads"`
   ),
   exactText: z.string().describe(
-    "The original portion of text that contains the claim. Must be a continuous, uninterrupted sequence from the source text."
+    `ORIGINAL TEXT FRAGMENT. MUST:
+    1. Be continuous unmodified text from source
+    2. Contain the core factual assertion
+    3. Not include explanatory context
+    4. Be between 5-25 words
+    
+    FORBIDDEN:
+    ❌ Paraphrasing or text recombination
+    ❌ Multiple disjoint segments
+    ❌ Added commentary
+    
+    BAD EXAMPLE: "uses... model (see section 3)"
+    GOOD EXAMPLE: "uses Llama 3.1 405B with 160K token context"`
   ),
   searchQuery: z.string().describe(
-    "A specific question formatted to help verify the claim when searched"
+    `VERIFICATION-FOCUSED SEARCH QUESTION. MUST:
+    1. Start with "What", "How", "Does", or "Is"
+    2. Include full technical names/terms
+    3. Specify metrics/numbers when present
+    4. Target claim verification
+    
+    FORMAT EXAMPLES:
+    ✅ "What is the token context limit of Llama 3.1 405B?"
+    ✅ "How does grouped attention work in Llama models?"
+    ✅ "Does Llama 3.1 use 405 billion parameters?"
+    
+    FORBIDDEN:
+    ❌ Generic queries ("Tell me about Llama")
+    ❌ Yes/no questions without specifics`
   )
 });
+
 export type LLMExtractedClaim = z.infer<typeof LLMExtractedClaimSchema>;
 
 export const LLMExtractedClaimsResponseSchema = z.object({
