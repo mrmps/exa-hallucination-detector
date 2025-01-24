@@ -36,6 +36,7 @@ import {
   Pencil,
   Copy,
   CheckCheck,
+  FileText,
 } from "lucide-react";
 
 const MAX_CHARACTERS = 5000;
@@ -89,8 +90,11 @@ interface FactCheckerProps {
 
 export default function FactChecker({ submissionId, text }: FactCheckerProps) {
   const [editableText, setEditableText] = useState(text);
+  const [shouldAnalyze, setShouldAnalyze] = useState(!!submissionId);
+  const [hasEverSubmitted, setHasEverSubmitted] = useState(!!submissionId);
+  const [analysisText, setAnalysisText] = useState(text);
   const [activeTab, setActiveTab] = useState<"text" | "analysis">("text");
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(!text);
   const [activeClaim, setActiveClaim] = useState<Claim | null>(null);
   const [expandedClaimId, setExpandedClaimId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -100,13 +104,13 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
 
   const hasText = editableText.trim().length > 0;
 
-  // 1. Extract Claims
+  // 1. Extract Claims - will only run after shouldAnalyze is true
   const {
     data: extractData,
     error: extractError,
     isLoading: isExtracting,
   } = useSWR(
-    hasText ? ["/api/extractclaims", editableText] : null,
+    shouldAnalyze ? ["/api/extractclaims", analysisText] : null,
     ([url, t]) => fetchExtractClaims(url, t),
     swrOptions
   );
@@ -179,6 +183,9 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
 
   const handleScan = () => {
     setIsEditing(false);
+    setShouldAnalyze(true);
+    setHasEverSubmitted(true);
+    setAnalysisText(editableText);
   };
 
   const handleUpgrade = () => {
@@ -190,10 +197,11 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     setActiveTab("text");
   };
 
-  const showClaimsSkeleton = isLoadingOverall && !claims;
+  const showClaimsSkeleton = shouldAnalyze && isLoadingOverall && !claims;
 
   const highlightClaims = useMemo(() => {
-    if (!claims) return <>{editableText}</>;
+    if (!claims) return <pre className="whitespace-pre-wrap font-sans max-w-[80ch]">{analysisText}</pre>;
+    
     const sortedClaims = [...claims]
       .filter((c) => c.start < c.end)
       .sort((a, b) => a.start - b.start);
@@ -203,14 +211,11 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     sortedClaims.forEach((claim) => {
       if (
         claim.start >= 0 &&
-        claim.end <= editableText.length &&
+        claim.end <= analysisText.length &&
         claim.start >= lastIndex
       ) {
-        const before = editableText.slice(lastIndex, claim.start);
-        if (before)
-          segments.push(
-            <React.Fragment key={`text-${lastIndex}`}>{before}</React.Fragment>
-          );
+        const before = analysisText.slice(lastIndex, claim.start);
+        if (before) segments.push(before);
 
         const unverified = claim.status === "not yet verified";
 
@@ -239,8 +244,6 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
             }`
           : "";
 
-        const claimText = editableText.slice(claim.start, claim.end);
-
         segments.push(
           <TooltipProvider key={`claim-${claim.id}`}>
             <Tooltip>
@@ -263,7 +266,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                   role="button"
                   aria-pressed={isActive}
                 >
-                  {claimText}
+                  {analysisText.slice(claim.start, claim.end)}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
@@ -299,14 +302,23 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
       }
     });
 
-    const remaining = editableText.slice(lastIndex);
-    if (remaining)
-      segments.push(
-        <React.Fragment key={`text-end`}>{remaining}</React.Fragment>
-      );
+    const remaining = analysisText.slice(lastIndex);
+    if (remaining) segments.push(remaining);
 
-    return segments;
-  }, [claims, editableText, activeClaim, activeTab]);
+    return <pre className="whitespace-pre-wrap font-sans max-w-[80ch]">{segments}</pre>;
+  }, [claims, analysisText, activeClaim, activeTab]);
+
+  const EmptyState = () => (
+    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+      <div className="text-gray-400 mb-4">
+        <FileText className="w-12 h-12" />
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Content to Analyze</h3>
+      <p className="text-sm text-gray-500 max-w-sm">
+        Enter your text in the editor to start fact-checking. We'll analyze your content and identify any potential issues.
+      </p>
+    </div>
+  );
 
   return (
     <div className="w-full h-full grid grid-rows-[1fr,auto] bg-white border-t border-gray-200 mt-16">
@@ -340,7 +352,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                     </Button>
                   )}
                 </div>
-                <div>
+                <div className="overflow-x-auto">
                   {isEditing ? (
                     <EditableText
                       text={editableText}
@@ -360,6 +372,8 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
               <div className="p-4">
                 {activeClaim ? (
                   <SingleClaimView claim={activeClaim} onBack={handleBackToText} />
+                ) : !hasEverSubmitted ? (
+                  <EmptyState />
                 ) : (
                   <>
                     <ClaimsScale claimsCount={claimsCount} />
@@ -368,32 +382,25 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                     </div>
                     <div className="space-y-3">
                       {error && <div className="text-red-500">{error}</div>}
-                      {!claims ? (
-                        <>
-                          <Skeleton className="h-24 w-full" />
-                          <Skeleton className="h-24 w-full" />
-                        </>
-                      ) : showClaimsSkeleton ? (
+                      {showClaimsSkeleton ? (
                         <>
                           <Skeleton className="h-24 w-full" />
                           <Skeleton className="h-24 w-full" />
                           <Skeleton className="h-24 w-full" />
                         </>
-                      ) : (
-                        claims.map((claim) => (
-                          <ClaimCard
-                            key={claim.id}
-                            claim={claim}
-                            isActive={claim.id === expandedClaimId}
-                            isExpanded={claim.id === expandedClaimId}
-                            onClick={() =>
-                              setExpandedClaimId((prevId) =>
-                                prevId === claim.id ? null : claim.id
-                              )
-                            }
-                          />
-                        ))
-                      )}
+                      ) : claims?.map((claim) => (
+                        <ClaimCard
+                          key={claim.id}
+                          claim={claim}
+                          isActive={claim.id === expandedClaimId}
+                          isExpanded={claim.id === expandedClaimId}
+                          onClick={() =>
+                            setExpandedClaimId((prevId) =>
+                              prevId === claim.id ? null : claim.id
+                            )
+                          }
+                        />
+                      ))}
                     </div>
                   </>
                 )}
@@ -420,7 +427,7 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                     </Button>
                   )}
                 </div>
-                <div className="overflow-y-auto">
+                <div className="overflow-y-auto overflow-x-auto">
                   {isEditing ? (
                     <EditableText
                       text={editableText}
@@ -447,6 +454,8 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
               <div className="p-4 h-full overflow-y-auto">
                 {activeClaim ? (
                   <SingleClaimView claim={activeClaim} onBack={handleBackToText} />
+                ) : !hasEverSubmitted ? (
+                  <EmptyState />
                 ) : (
                   <>
                     <ClaimsScale claimsCount={claimsCount} />
@@ -455,32 +464,25 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
                     </div>
                     <div className="space-y-3">
                       {error && <div className="text-red-500">{error}</div>}
-                      {!claims ? (
-                        <>
-                          <Skeleton className="h-24 w-full" />
-                          <Skeleton className="h-24 w-full" />
-                        </>
-                      ) : showClaimsSkeleton ? (
+                      {showClaimsSkeleton ? (
                         <>
                           <Skeleton className="h-24 w-full" />
                           <Skeleton className="h-24 w-full" />
                           <Skeleton className="h-24 w-full" />
                         </>
-                      ) : (
-                        claims.map((claim) => (
-                          <ClaimCard
-                            key={claim.id}
-                            claim={claim}
-                            isActive={claim.id === expandedClaimId}
-                            isExpanded={claim.id === expandedClaimId}
-                            onClick={() =>
-                              setExpandedClaimId((prevId) =>
-                                prevId === claim.id ? null : claim.id
-                              )
-                            }
-                          />
-                        ))
-                      )}
+                      ) : claims?.map((claim) => (
+                        <ClaimCard
+                          key={claim.id}
+                          claim={claim}
+                          isActive={claim.id === expandedClaimId}
+                          isExpanded={claim.id === expandedClaimId}
+                          onClick={() =>
+                            setExpandedClaimId((prevId) =>
+                              prevId === claim.id ? null : claim.id
+                            )
+                          }
+                        />
+                      ))}
                     </div>
                   </>
                 )}
