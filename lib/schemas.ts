@@ -45,19 +45,22 @@ export const ClaimSchema = z.object({
   explanation: z.string().nullable(),
   sources: z.array(MergedSourceSchema),
   suggestedFix: z.string().optional(),
+  searchQuery: z.string()
 });
 export type Claim = z.infer<typeof ClaimSchema>;
 
 // -----------------------------------
 // LLM Extraction Schemas
 // -----------------------------------
-
 export const LLMExtractedClaimSchema = z.object({
   claim: z.string().describe(
     "The extracted claim in a single verifiable statement. Should include all information necessary to verify the statement in isolation."
   ),
   exactText: z.string().describe(
     "The original portion of text that contains the claim. Must be a continuous, uninterrupted sequence from the source text."
+  ),
+  searchQuery: z.string().describe(
+    "A specific question formatted to help verify the claim when searched"
   )
 });
 export type LLMExtractedClaim = z.infer<typeof LLMExtractedClaimSchema>;
@@ -84,8 +87,9 @@ export const SearchAndVerifyRequestSchema = z.object({
     id: z.number(),
     exactText: z.string(),
     claim: z.string(),
+    searchQuery: z.string(),
     start: z.number(),
-    end: z.number()
+    end: z.number(),
   }))
 });
 export type SearchAndVerifyRequest = z.infer<typeof SearchAndVerifyRequestSchema>;
@@ -125,6 +129,7 @@ export const LLMVerificationResultSchema = z.object({
   confidence: z.number().min(0).max(100).describe('Confidence score from 0-100 indicating how confident the verification is'),
   explanation: z.string().describe('Detailed explanation of the verification result, with source references like {{1}}, {{2}}'),
   suggestedFix: z.string().optional().describe('If status is contradicted, provides corrected version of the claim text'),
-  citedSources: z.array(LLMCitedSourceSchema).describe('Array of sources cited in the explanation, with stance and relevance metrics')
+  citedSources: z.array(LLMCitedSourceSchema).describe('Array of sources cited in the explanation, with stance and relevance metrics'),
+  searchQuery: z.string().describe('The search query used to verify the claim')
 });
 export type LLMVerificationResult = z.infer<typeof LLMVerificationResultSchema>;

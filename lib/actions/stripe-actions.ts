@@ -15,7 +15,9 @@ export async function createStripeCheckoutSession(lineItems: LineItem[]) {
     return { sessionId: null, checkoutError: 'You need to sign in first.' }
   }
 
-  const origin = process.env.NEXT_PUBLIC_APP_URL as string
+  const origin = process.env.NODE_ENV === 'production' 
+  ? 'https://factfilter.co'
+  : 'http://localhost:3000'
 
   const { userId } = await auth();
 

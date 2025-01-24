@@ -8,31 +8,40 @@ import Exa from "exa-js";
 import {
   SearchAndVerifyRequestSchema,
   SearchAndVerifyResponseSchema,
-  ClaimStatusSchema,
-  type SearchAndVerifyRequest,
   type Claim,
   ExaSourceSchema,
-  LLMCitedSourceSchema,
   MergedSourceSchema,
   LLMVerificationResultSchema,
 } from "@/lib/schemas";
 
 const exa = new Exa(process.env.EXA_API_KEY as string);
 
-async function searchExaForClaim(
-  claimText: string
-): Promise<z.infer<typeof ExaSourceSchema>[]> {
-  const result = await exa.searchAndContents(
-    `Query: ${claimText}\nFind pages that can verify this claim:`,
-    {
-      type: "auto",
-      numResults: 3,
-      livecrawl: "always",
-      text: true,
-    }
-  );
+// Helper function to handle Zod errors consistently
+function handleZodError(schema: string, data: unknown, err: z.ZodError): never {
+  const errorDetails = err.errors.map(e => {
+    const path = e.path.join('.');
+    const value = path ? `Value at ${path}: ${JSON.stringify(e.path.reduce((obj: any, key) => obj?.[key], data))}` : 'undefined';
+    return `${value} - ${e.message}`;
+  }).join('\n');
 
-  const sources = result.results.map((item: any, index: number) => {
+  throw new Error(
+    `Invalid ${schema} format:\n` +
+    `Input: ${JSON.stringify(data, null, 2)}\n` +
+    `Validation errors:\n${errorDetails}`
+  );
+}
+
+async function searchExaForClaim(
+  searchQuery: string
+): Promise<z.infer<typeof ExaSourceSchema>[]> {
+  const results = await exa.searchAndContents(searchQuery, {
+    type: "auto",
+    numResults: 3,
+    livecrawl: "always",
+    text: true,
+  });
+
+  const sources = results.results.map((item: any, index: number) => {
     const sourceText = (item.text || "").slice(0, 300); // limit to 300 chars
     return {
       url: item.url,
@@ -43,7 +52,14 @@ async function searchExaForClaim(
   });
 
   sources.forEach((src: unknown) => {
-    ExaSourceSchema.parse(src);
+    try {
+      ExaSourceSchema.parse(src);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        handleZodError('ExaSource', src, err);
+      }
+      throw err;
+    }
   });
 
   return sources;
@@ -51,6 +67,7 @@ async function searchExaForClaim(
 
 async function verifyClaimWithLLM(
   claimText: string,
+  searchQuery: string,
   sources: z.infer<typeof ExaSourceSchema>[]
 ) {
   const sourcesJson = JSON.stringify(sources, null, 2);
@@ -61,7 +78,7 @@ async function verifyClaimWithLLM(
     prompt: `You are an expert fact-checker. Given a claim and its sources, verify the claim comprehensively.
 
 Instructions:
-- Read the claim carefully.
+- Read the claim and search query carefully to understand the full context.
 - Analyze the provided sources, determining how each relates to the claim.
 - status: Choose one of "supported", "contradicted", "debated", or "insufficient information".
 - confidence: Provide a numeric 0-100 confidence score in your conclusion.
@@ -74,12 +91,22 @@ Now apply this logic to the following input.
 Claim:
 ${claimText}
 
+Search Query Used:
+${searchQuery}
+
 Sources:
 ${sourcesJson}`,
   });
 
-  const verification = LLMVerificationResultSchema.parse(object);
-  return verification;
+  try {
+    const verification = LLMVerificationResultSchema.parse(object);
+    return verification;
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      handleZodError('LLMVerificationResult', object, err);
+    }
+    throw err;
+  }
 }
 
 function buildFinalClaim(
@@ -89,7 +116,8 @@ function buildFinalClaim(
   start: number,
   end: number,
   verification: z.infer<typeof LLMVerificationResultSchema>,
-  exaSources: z.infer<typeof ExaSourceSchema>[]
+  exaSources: z.infer<typeof ExaSourceSchema>[],
+  searchQuery: string
 ): Claim {
   // Merge cited sources with exa sources
   const mergedSources = verification.citedSources.map((cited) => {
@@ -106,10 +134,17 @@ function buildFinalClaim(
           sourceText: "",
         };
 
-    return MergedSourceSchema.parse({
-      ...base,
-      ...cited,
-    });
+    try {
+      return MergedSourceSchema.parse({
+        ...base,
+        ...cited,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        handleZodError('MergedSource', { ...base, ...cited }, err);
+      }
+      throw err;
+    }
   });
 
   return {
@@ -123,20 +158,31 @@ function buildFinalClaim(
     explanation: verification.explanation,
     suggestedFix: verification.suggestedFix,
     sources: mergedSources,
+    searchQuery: searchQuery,
   };
 }
 
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json();
-    const { claims } = SearchAndVerifyRequestSchema.parse(json);
+    let parsedRequest;
+    try {
+      parsedRequest = SearchAndVerifyRequestSchema.parse(json);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        handleZodError('SearchAndVerifyRequest', json, err);
+      }
+      throw err;
+    }
 
-    // claims have id, exactText, claim, start, end
+    const { claims } = parsedRequest;
+
+    // claims have id, exactText, claim, start, end, searchQuery
     // status='not yet verified', confidence/explanation/sources not set yet
     // We'll do search + verify for each claim in parallel
     const finalClaimsPromises = claims.map(async (c) => {
-      const exaSources = await searchExaForClaim(c.claim);
-      const verification = await verifyClaimWithLLM(c.claim, exaSources);
+      const exaSources = await searchExaForClaim(c.searchQuery);
+      const verification = await verifyClaimWithLLM(c.claim, c.searchQuery, exaSources);
       const finalClaim = buildFinalClaim(
         c.id,
         c.exactText,
@@ -144,7 +190,8 @@ export async function POST(req: NextRequest) {
         c.start,
         c.end,
         verification,
-        exaSources
+        exaSources,
+        c.searchQuery
       );
       return finalClaim;
     });
@@ -152,8 +199,15 @@ export async function POST(req: NextRequest) {
     const finalClaims = await Promise.all(finalClaimsPromises);
 
     const response = { claims: finalClaims };
-    const parsed = SearchAndVerifyResponseSchema.parse(response);
-    return NextResponse.json(parsed);
+    try {
+      const parsed = SearchAndVerifyResponseSchema.parse(response);
+      return NextResponse.json(parsed);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        handleZodError('SearchAndVerifyResponse', response, err);
+      }
+      throw err;
+    }
   } catch (error: any) {
     console.error("Error in /api/searchandverify:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

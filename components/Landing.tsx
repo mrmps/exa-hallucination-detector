@@ -81,20 +81,37 @@ export default function LandingPage() {
         }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-20">
+      <div className="relative mx-auto max-w-7xl px-6 py-16">
         {/* Hero Section */}
-        <div className="text-center max-w-[640px] mx-auto">
-          <div className="inline-flex items-center justify-center">
-            <span className="inline-flex items-center rounded-full border border-neutral-200/70 bg-white px-3 py-1 text-sm text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_3px_10px_rgba(0,0,0,0.04)] hover:border-neutral-300/70">
-              🎉 <span className="mx-2 h-3 w-px bg-neutral-200" /> Powered by Exa
-            </span>
+        <div className="max-w-[640px]">
+          <div className="flex items-center gap-1 text-sm text-neutral-600">
+            <div className="flex items-center">
+              ⭐️⭐️⭐️⭐️⭐️ 
+              <span className="ml-1">142 reviews</span>
+            </div>
+            <span className="mx-2">•</span>
+            <span>324 users fact-checking with us</span>
           </div>
-          <h1 className="mt-6 text-[2.75rem] font-bold tracking-tight text-neutral-900 sm:text-5xl md:text-6xl [text-wrap:balance] [-webkit-text-stroke:1px_#000000] [text-shadow:0_4px_4px_rgba(0,0,0,0.05)]">
-            Transform Your Text into Trustworthy Content
+          <h1 className="mt-4 text-[2.75rem] font-bold tracking-tight text-neutral-900 sm:text-4xl md:text-5xl">
+            Find <span className="text-indigo-600">accurate facts</span> in minutes.
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-neutral-600 [text-wrap:balance]">
-            Instantly verify facts and sources in your writing. No more guesswork—just credible, accurate content that builds trust with your audience.
+          <p className="mt-4 text-lg leading-relaxed text-neutral-800">
+            Get facts faster. Create content, add claims and quickly verify thousands of well-researched sources from around the web.
           </p>
+          <ul className="mt-6 space-y-3">
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span>Thousands of verified sources and expert fact-checks</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span>5 minute verification process</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span>Secure and safe</span>
+            </li>
+          </ul>
         </div>
 
         {/* Fact Check Tool */}

@@ -4,8 +4,8 @@ const nextConfig = {
     basePath: "",
     experimental: {
       serverActions: {
-        allowedOrigins: ["demo.exa.ai"],
-        allowedForwardedHosts: ["demo.exa.ai"],
+        allowedOrigins: ["factfilter.co"],
+        allowedForwardedHosts: ["factfilter.co"],
       },
     },
   };

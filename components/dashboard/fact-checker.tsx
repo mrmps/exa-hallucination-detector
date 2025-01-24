@@ -65,6 +65,7 @@ async function fetchSearchAndVerify(
       claims: extractedClaims.map((c) => ({
         id: c.id,
         exactText: c.exactText,
+        searchQuery: c.searchQuery,
         claim: c.claim,
         start: c.start,
         end: c.end,
@@ -109,13 +110,13 @@ export default function FactChecker({ submissionId, text }: FactCheckerProps) {
     ([url, t]) => fetchExtractClaims(url, t),
     swrOptions
   );
-
   // Use start and end from extractData
   const extractedClaims: Claim[] | null = useMemo(() => {
     if (!extractData) return null;
     return extractData.claims.map((c, index) => ({
-      id: index + 1,  
+      id: index + 1,
       exactText: c.exactText,
+      searchQuery: c.searchQuery, // Add searchQuery field
       claim: c.claim,
       start: c.start,    // use start from extraction
       end: c.end,        // use end from extraction
