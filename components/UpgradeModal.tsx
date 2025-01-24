@@ -27,7 +27,7 @@ export default function UpgradeModal() {
   const { toast } = useToast();
 
   const setOpen = (open: boolean) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
     if (open) {
       params.set("upgrade", "true");
     } else {
