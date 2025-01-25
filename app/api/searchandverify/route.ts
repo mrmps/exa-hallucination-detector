@@ -73,20 +73,13 @@ async function verifyClaimWithLLM(
   const sourcesJson = JSON.stringify(sources, null, 2);
 
   const { object } = await generateObject({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-4o"),
     schema: LLMVerificationResultSchema,
     prompt: `You are an expert fact-checker. Given a claim and its sources, verify the claim comprehensively.
 
 Instructions:
-- Read the claim and search query carefully to understand the full context.
-- Analyze the provided sources, determining how each relates to the claim.
-- status: Choose one of "supported", "contradicted", "debated", or "insufficient information".
-- confidence: Provide a numeric 0-100 confidence score in your conclusion.
-- explanation: A detailed, clear explanation. Include references like {{1}}, {{2}} at the end of sentences that rely on the corresponding sources. Make sure every reference number corresponds to a sourceNumber in citedSources.
-- If status is "contradicted", provide a suggestedFix with a corrected version of the claim.
-- For citedSources: Each sourceNumber must match exactly those cited in explanation. supports = true/false based on if it directly supports the claim. agreementPercentage and pertinence show how strongly it supports or relates to the claim.
-
-Now apply this logic to the following input.
+- Read the claim, search query, and sources carefully to understand the full context.
+- Then create the verification result following the schema exactly.
 
 Claim:
 ${claimText}
@@ -103,6 +96,7 @@ ${sourcesJson}`,
     return verification;
   } catch (err) {
     if (err instanceof z.ZodError) {
+      console.log("Zod error in verifyClaimWithLLM");
       handleZodError('LLMVerificationResult', object, err);
     }
     throw err;
@@ -141,6 +135,7 @@ function buildFinalClaim(
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
+        console.log("Zod error in buildFinalClaim");
         handleZodError('MergedSource', { ...base, ...cited }, err);
       }
       throw err;
